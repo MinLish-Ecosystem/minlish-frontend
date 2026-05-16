@@ -3,10 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { ShieldAlert, Mail, ArrowRight, ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
-import { extractFieldErrors, getErrorMessage, FieldErrors } from "../lib/formErrors";
-import { forgotPassword as forgotPasswordApi } from "../api/auth.api";
-import TextField from "../components/form/TextField";
-import SubmitButton from "../components/form/SubmitButton";
+import { extractFieldErrors, getErrorMessage, FieldErrors } from "../../lib/formErrors";
+import { forgotPassword as forgotPasswordApi } from "../../api/auth.api";
+import TextField from "../../components/common/TextField";
+import SubmitButton from "../../components/common/SubmitButton";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");

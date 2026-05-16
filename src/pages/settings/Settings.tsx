@@ -7,14 +7,16 @@ import {
   Mail,
   Lock
 } from "lucide-react";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-hot-toast";
-import { extractFieldErrors, getErrorMessage, FieldErrors } from "../lib/formErrors";
-import { getProfile, updateProfile, requestEmailChange, confirmEmailChange } from "../api/user.api";
-import TextField from "../components/form/TextField";
+import { extractFieldErrors, getErrorMessage, FieldErrors } from "../../lib/formErrors";
+import { getProfile, updateProfile, requestEmailChange, confirmEmailChange } from "../../api/user.api";
+import Button from "../../components/common/Button";
+import Card from "../../components/common/Card";
+import TextField from "../../components/common/TextField";
 
 const SettingSection = ({ title, icon: Icon, children }: any) => (
-  <section className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-8 space-y-6">
+  <Card className="p-8 space-y-6">
     <div className="flex items-center gap-3">
       <div className="p-3 bg-purple-50 rounded-2xl text-purple-600">
         <Icon className="w-6 h-6" />
@@ -22,7 +24,7 @@ const SettingSection = ({ title, icon: Icon, children }: any) => (
       <h3 className="text-xl font-bold text-slate-800">{title}</h3>
     </div>
     {children}
-  </section>
+  </Card>
 );
 
 export default function Settings() {
@@ -203,14 +205,15 @@ export default function Settings() {
             </div>
           </div>
           <div className="flex justify-end pt-4">
-            <button
+            <Button
               onClick={handleSave}
-              disabled={loading.profile}
-              className="bg-purple-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 disabled:opacity-60"
+              loading={loading.profile}
+              loadingLabel="Saving..."
+              leftIcon={<Save className="w-5 h-5" />}
+              className="bg-purple-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Save className="w-5 h-5" />
-              {loading.profile ? "Saving..." : "Save Changes"}
-            </button>
+              Save Changes
+            </Button>
           </div>
         </SettingSection>
 
@@ -265,20 +268,23 @@ export default function Settings() {
               </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
-                <button
+                <Button
                   onClick={handleRequestEmailChange}
-                  disabled={loading.requestEmail}
-                  className="px-6 py-3 border border-purple-600 text-purple-600 rounded-xl font-semibold hover:bg-purple-50 transition-colors disabled:opacity-60"
+                  loading={loading.requestEmail}
+                  loadingLabel="Sending..."
+                  variant="outline"
+                  className="border-purple-600 text-purple-600 rounded-xl hover:bg-purple-50"
                 >
-                  {loading.requestEmail ? "Sending..." : "Send OTP"}
-                </button>
-                <button
+                  Send OTP
+                </Button>
+                <Button
                   onClick={handleConfirmEmailChange}
-                  disabled={loading.confirmEmail}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold shadow-lg shadow-purple-200 hover:scale-[1.02] transition-all disabled:opacity-60"
+                  loading={loading.confirmEmail}
+                  loadingLabel="Confirming..."
+                  className="bg-purple-600 text-white rounded-xl shadow-lg shadow-purple-200 hover:scale-[1.02]"
                 >
-                  {loading.confirmEmail ? "Confirming..." : "Confirm Email"}
-                </button>
+                  Confirm Email
+                </Button>
               </div>
             </div>
 

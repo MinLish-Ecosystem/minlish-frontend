@@ -3,9 +3,9 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { MailCheck, ArrowRight, ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
-import { extractFieldErrors, getErrorMessage, FieldErrors } from "../lib/formErrors";
-import { verifyEmail as verifyEmailApi } from "../api/auth.api";
-import FormError from "../components/form/FormError";
+import { extractFieldErrors, getErrorMessage, FieldErrors } from "../../lib/formErrors";
+import { verifyEmail as verifyEmailApi } from "../../api/auth.api";
+import FormError from "../../components/common/FormError";
 
 export default function VerifyEmail() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);

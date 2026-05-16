@@ -8,13 +8,15 @@ import {
   Utensils,
   TrendingUp,
   CheckCircle2,
-  BrainCircuit
+  BrainCircuit,
+  Compass
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useAuth } from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState, AppDispatch } from "../store";
-import { fetchVocabSets } from "../store/slices/vocabSlice";
+import { RootState, AppDispatch } from "../../store";
+import { fetchVocabSets } from "../../store/slices/vocabSlice";
 import { useEffect } from "react";
 
 const StatCard = ({ label, value, trend, icon: Icon, color }: any) => (
@@ -87,10 +89,11 @@ const SetCard = ({ name, description, words, mastery, level, color, icon: Icon }
 export default function Dashboard() {
   const { user } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
   const { sets } = useSelector((state: RootState) => state.vocab);
 
   useEffect(() => {
-    dispatch(fetchVocabSets());
+    dispatch(fetchVocabSets({}));
   }, [dispatch]);
 
   const icons: any = { Briefcase, Plane, Utensils };
@@ -162,7 +165,16 @@ export default function Dashboard() {
         <div className="xl:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-slate-800">Your Vocabulary Sets</h3>
-            <button className="text-purple-600 font-bold text-sm hover:underline">View All</button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => navigate('/explore')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-purple-600 border border-purple-300 rounded-full px-3 py-1.5 hover:bg-purple-50 transition-colors"
+              >
+                <Compass className="w-4 h-4" />
+                Explore more
+              </button>
+              <button className="text-purple-600 font-bold text-sm hover:underline">View All</button>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

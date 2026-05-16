@@ -13,8 +13,8 @@ import {
   Moon,
   HelpCircle
 } from "lucide-react";
-import { useAuth } from "../hooks/useAuth";
-import { cn } from "../lib/utils";
+import { useAuth } from "../../hooks/useAuth";
+import { cn } from "../../lib/utils";
 
 const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
   <NavLink
@@ -91,9 +91,9 @@ export default function MainLayout() {
           </div>
 
           <div className="hidden lg:flex items-center gap-8 mx-8">
-            <a href="#" className="text-sm font-semibold text-purple-600 border-b-2 border-purple-600 pb-1">Home</a>
-            <a href="#" className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">My Library</a>
-            <a href="#" className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">Explore</a>
+            <NavLink to="/dashboard" className={({ isActive }) => cn("text-sm font-semibold transition-colors", isActive ? "text-purple-600 border-b-2 border-purple-600 pb-1" : "text-slate-500 hover:text-slate-800")}>Home</NavLink>
+            <NavLink to="/vocabulary" className={({ isActive }) => cn("text-sm font-semibold transition-colors", isActive ? "text-purple-600 border-b-2 border-purple-600 pb-1" : "text-slate-500 hover:text-slate-800")}>My Library</NavLink>
+            <NavLink to="/explore" className={({ isActive }) => cn("text-sm font-semibold transition-colors", isActive ? "text-purple-600 border-b-2 border-purple-600 pb-1" : "text-slate-500 hover:text-slate-800")}>Explore</NavLink>
           </div>
 
           <div className="flex items-center gap-4">

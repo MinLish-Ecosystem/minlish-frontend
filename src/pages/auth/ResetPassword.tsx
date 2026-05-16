@@ -3,11 +3,11 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Key, Lock, ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "react-hot-toast";
-import { extractFieldErrors, getErrorMessage, FieldErrors } from "../lib/formErrors";
-import { resetPassword as resetPasswordApi } from "../api/auth.api";
-import TextField from "../components/form/TextField";
-import PasswordField from "../components/form/PasswordField";
-import SubmitButton from "../components/form/SubmitButton";
+import { extractFieldErrors, getErrorMessage, FieldErrors } from "../../lib/formErrors";
+import { resetPassword as resetPasswordApi } from "../../api/auth.api";
+import TextField from "../../components/common/TextField";
+import PasswordField from "../../components/common/PasswordField";
+import SubmitButton from "../../components/common/SubmitButton";
 
 export default function ResetPassword() {
   const [otp, setOtp] = useState("");
