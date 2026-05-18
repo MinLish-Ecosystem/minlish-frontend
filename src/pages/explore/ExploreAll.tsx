@@ -1,22 +1,12 @@
-import React from "react";
+import React, { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, SlidersHorizontal, Plus } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import { Search, SlidersHorizontal } from "lucide-react";
 import VocabSetCard from "../../components/features/vocabulary/VocabSetCard";
-import { VocabCategory, VocabLevel, SortBy } from "../../store/slices/vocabSlice";
-
-// ─── Mock data cho UI Demo ──────────────────────────────────────────────────
-// TODO (Người 2): Thay bằng useDispatch/useSelector để fetch từ Redux (fetchPublicSets)
-
-const MOCK_PUBLIC_SETS = [
-  { id: "p1", name: "IELTS Academic Masterclass", wordsCount: 500, category: "IELTS", level: "Academic", mastery: 0, colorTheme: "blue" as const, learnerCount: 12400 },
-  { id: "p2", name: "Travel Survival English",    wordsCount: 150, category: "Travel", level: "Beginner", mastery: 0, colorTheme: "emerald" as const, learnerCount: 8300 },
-  { id: "p3", name: "Daily Idioms",               wordsCount: 200, category: "General", level: "Intermediate", mastery: 0, colorTheme: "amber" as const, learnerCount: 5600 },
-  { id: "p4", name: "TOEIC 900+ Core",            wordsCount: 850, category: "TOEIC", level: "Advanced", mastery: 0, colorTheme: "purple" as const, learnerCount: 9200 },
-  { id: "p5", name: "Tech Startup Jargon",        wordsCount: 120, category: "Technology", level: "Intermediate", mastery: 0, colorTheme: "cyan" as const, learnerCount: 4100 },
-  { id: "p6", name: "Emotional Intelligence",     wordsCount: 200, category: "Psychology", level: "Advanced", mastery: 0, colorTheme: "rose" as const, learnerCount: 3800 },
-  { id: "p7", name: "Academic Phrasal Verbs",     wordsCount: 350, category: "Academic", level: "Academic", mastery: 0, colorTheme: "blue" as const, learnerCount: 6700 },
-  { id: "p8", name: "Business Negotiations",      wordsCount: 180, category: "Business", level: "Advanced", mastery: 0, colorTheme: "emerald" as const, learnerCount: 7100 },
-];
+import { VocabCategory, VocabLevel, SortBy, fetchPublicSets } from "../../store/slices/vocabSlice";
+import type { RootState } from "../../store";
+import Loading from "../../components/common/Loading";
+import EmptyState from "../../components/common/EmptyState";
 
 const CATEGORIES: VocabCategory[] = ["General", "Business", "IELTS", "TOEIC", "Travel", "Technology", "Academic", "Psychology", "Science"];
 const LEVELS: VocabLevel[]        = ["Beginner", "Intermediate", "Advanced", "Academic"];
@@ -28,68 +18,89 @@ const SORTS: { value: SortBy; label: string }[] = [
 
 export default function ExploreAll() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { publicSets, publicSetsLoading, publicSetsPagination } = useSelector((state: RootState) => state.vocab);
 
-  // ── Local filter state ──────────────────────────────────────────────────
-  // TODO (Người 2): Nâng cấp thành Redux filter state (dispatch setFilters + fetchPublicSets)
   const [q,        setQ]        = React.useState("");
   const [category, setCategory] = React.useState<VocabCategory | "">("");
   const [level,    setLevel]    = React.useState<VocabLevel | "">("");
   const [sortBy,   setSortBy]   = React.useState<SortBy>("popular");
+  const [currentPage, setCurrentPage] = React.useState(1);
 
-  // Client-side filter on mock data (sẽ xóa khi có real API)
-  const filtered = MOCK_PUBLIC_SETS.filter((s) => {
-    const matchQ    = !q || s.name.toLowerCase().includes(q.toLowerCase());
-    const matchCat  = !category || s.category === category;
-    const matchLvl  = !level    || s.level    === level;
-    return matchQ && matchCat && matchLvl;
-  });
+  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const handleSearchChange = useCallback((value: string) => {
+    setQ(value);
+    setCurrentPage(1);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      // Trigger fetch after debounce
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    dispatch(
+      fetchPublicSets({
+        q: q || undefined,
+        category: category as VocabCategory | undefined,
+        level: level as VocabLevel | undefined,
+        sortBy,
+        page: currentPage,
+        limit: 12,
+      }) as any
+    );
+  }, [q, category, level, sortBy, currentPage, dispatch]);
 
   return (
     <div className="max-w-[1280px] mx-auto pb-12">
-      {/* Page Header */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-slate-800 mb-2">Explore All Sets</h2>
         <p className="text-slate-500">Find the perfect vocabulary set for your learning goals.</p>
       </div>
 
-      {/* Search + Filter Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-8 flex flex-col md:flex-row gap-4">
-        {/* Search input */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
             type="text"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search sets..."
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 transition-all text-sm outline-none"
           />
         </div>
 
-        {/* Category filter */}
         <select
           value={category}
-          onChange={(e) => setCategory(e.target.value as VocabCategory | "")}
+          onChange={(e) => {
+            setCategory(e.target.value as VocabCategory | "");
+            setCurrentPage(1);
+          }}
           className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none"
         >
           <option value="">All Categories</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
 
-        {/* Level filter */}
         <select
           value={level}
-          onChange={(e) => setLevel(e.target.value as VocabLevel | "")}
+          onChange={(e) => {
+            setLevel(e.target.value as VocabLevel | "");
+            setCurrentPage(1);
+          }}
           className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none"
         >
           <option value="">All Levels</option>
           {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
 
-        {/* Sort by */}
         <select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
+          onChange={(e) => {
+            setSortBy(e.target.value as SortBy);
+            setCurrentPage(1);
+          }}
           className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none"
         >
           {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -101,38 +112,87 @@ export default function ExploreAll() {
         </button>
       </div>
 
-      {/* Results count */}
-      <p className="text-sm text-slate-500 mb-4 font-medium">
-        Showing <span className="text-purple-600 font-bold">{filtered.length}</span> sets
-      </p>
+      {!publicSetsLoading && (
+        <p className="text-sm text-slate-500 mb-4 font-medium">
+          Showing <span className="text-purple-600 font-bold">{publicSets.length}</span> of <span className="text-purple-600 font-bold">{publicSetsPagination?.total || 0}</span> sets
+        </p>
+      )}
 
-      {/* Sets Grid — Tái sử dụng VocabSetCard */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.length === 0 ? (
-          <div className="col-span-full py-16 text-center">
-            <p className="text-slate-400 text-lg">No sets found matching your filters.</p>
-            <button onClick={() => { setQ(""); setCategory(""); setLevel(""); }} className="mt-4 text-purple-600 font-semibold hover:underline text-sm">
-              Clear all filters
-            </button>
+      {publicSetsLoading ? (
+        <div className="flex justify-center items-center py-16">
+          <Loading />
+        </div>
+      ) : null}
+
+      {!publicSetsLoading && publicSets.length === 0 ? (
+        <div className="col-span-full py-16 text-center">
+          <EmptyState title="No sets found" description="Try adjusting your search filters." />
+          <button
+            onClick={() => {
+              setQ("");
+              setCategory("");
+              setLevel("");
+              setSortBy("popular");
+              setCurrentPage(1);
+            }}
+            className="mt-4 text-purple-600 font-semibold hover:underline text-sm"
+          >
+            Clear all filters
+          </button>
+        </div>
+      ) : null}
+
+      {!publicSetsLoading && publicSets.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {publicSets.map((set) => (
+              <VocabSetCard
+                key={set.id}
+                id={set.id}
+                name={set.name}
+                wordsCount={set.totalWords}
+                category={set.category}
+                level={set.level}
+                mastery={0}
+                colorTheme={set.colorTheme}
+                onClick={() => navigate(`/explore/${set.id}`)}
+              />
+            ))}
           </div>
-        ) : (
-          filtered.map((set) => (
-            <VocabSetCard
-              key={set.id}
-              id={set.id}
-              name={set.name}
-              wordsCount={set.wordsCount}
-              category={set.category}
-              level={set.level}
-              mastery={set.mastery}
-              colorTheme={set.colorTheme}
-              onClick={() => navigate(`/explore/${set.id}`)}
-            />
-          ))
-        )}
-      </div>
 
-      {/* TODO (Người 2): Thêm Pagination component khi có real API */}
+          {publicSetsPagination && publicSetsPagination.totalPages > 1 && (
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Previous
+              </button>
+              {Array.from({ length: publicSetsPagination.totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-4 py-2 rounded-lg ${
+                    page === currentPage
+                      ? "bg-purple-600 text-white"
+                      : "border border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(Math.min(publicSetsPagination.totalPages, currentPage + 1))}
+                disabled={currentPage === publicSetsPagination.totalPages}
+                className="px-4 py-2 rounded-lg border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      ) : null}
     </div>
   );
 }
