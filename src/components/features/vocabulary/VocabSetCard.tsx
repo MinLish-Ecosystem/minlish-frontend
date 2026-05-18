@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { MoreVertical, Book } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
@@ -11,6 +11,8 @@ export interface VocabSetCardProps {
   mastery: number;
   colorTheme?: "blue" | "emerald" | "amber" | "purple" | "rose" | "cyan";
   onClick?: () => void;
+  onEditSet?: () => void;
+  onDeleteSet?: () => void;
 }
 
 const themeStyles = {
@@ -66,8 +68,21 @@ export default function VocabSetCard({
   mastery,
   colorTheme = "blue",
   onClick,
+  onEditSet,
+  onDeleteSet,
 }: VocabSetCardProps) {
   const styles = themeStyles[colorTheme] || themeStyles.blue;
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
 
   return (
     <div
@@ -77,16 +92,39 @@ export default function VocabSetCard({
         styles.border
       )}
     >
-      <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity" ref={menuRef}>
         <button
-          className="text-slate-400 hover:text-purple-600"
+          className="text-slate-400 hover:text-purple-600 relative z-20"
           onClick={(e) => {
             e.stopPropagation();
-            // Show options
+            setShowMenu((s) => !s);
           }}
+          aria-haspopup="true"
+          aria-expanded={showMenu}
+          title="Options"
         >
           <MoreVertical className="w-5 h-5" />
         </button>
+
+        {showMenu && (
+          <div
+            className="absolute right-0 mt-10 w-40 bg-white border border-slate-200 rounded-lg shadow-md py-2 z-30"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50"
+              onClick={() => { setShowMenu(false); onEditSet && onEditSet(); }}
+            >
+              Edit
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-slate-50"
+              onClick={() => { setShowMenu(false); onDeleteSet && onDeleteSet(); }}
+            >
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between items-start mb-4">

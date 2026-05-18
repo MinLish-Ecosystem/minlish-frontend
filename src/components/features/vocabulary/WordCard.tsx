@@ -1,5 +1,5 @@
 import React from "react";
-import { Edit2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
 export type WordStatus = "New" | "Learning" | "Mastered";
@@ -10,6 +10,7 @@ export interface WordCardProps {
   definition: string;
   status: WordStatus;
   onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const statusStyles = {
@@ -41,6 +42,7 @@ export default function WordCard({
   definition,
   status,
   onEdit,
+  onDelete,
 }: WordCardProps) {
   const styles = statusStyles[status] || statusStyles.New;
 
@@ -67,13 +69,20 @@ export default function WordCard({
       
       <p className="text-base text-slate-700 mb-4">{definition}</p>
       
-      <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={onEdit}
           className="p-2 text-purple-600 hover:bg-purple-50 rounded-full transition-colors"
           title="Edit Word"
         >
           <Edit2 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-2 text-rose-600 hover:bg-rose-50 rounded-full transition-colors"
+          title="Delete Word"
+        >
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
     </div>

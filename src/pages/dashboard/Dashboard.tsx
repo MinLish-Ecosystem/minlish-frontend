@@ -18,6 +18,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../../store";
 import { fetchVocabSets } from "../../store/slices/vocabSlice";
 import { useEffect } from "react";
+import { EmptyState } from "../../components/common";
 
 const StatCard = ({ label, value, trend, icon: Icon, color }: any) => (
   <motion.div 
@@ -90,19 +91,17 @@ export default function Dashboard() {
   const { user } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { sets } = useSelector((state: RootState) => state.vocab);
+  const { sets, setsLoading } = useSelector((state: RootState) => state.vocab);
 
   useEffect(() => {
     dispatch(fetchVocabSets({}));
   }, [dispatch]);
 
-  const icons: any = { Briefcase, Plane, Utensils };
-
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       {/* Welcome Banner */}
-      <section className="relative w-full h-[240px] rounded-[32px] overflow-hidden shadow-2xl shadow-purple-200">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#667eea] to-[#764ba2]" />
+      <section className="relative w-full h-60 rounded-4xl overflow-hidden shadow-2xl shadow-purple-200">
+        <div className="absolute inset-0 bg-linear-to-r from-[#667eea] to-[#764ba2]" />
         
         {/* Blob Decor */}
         <div className="absolute -top-12 -right-12 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
@@ -173,26 +172,47 @@ export default function Dashboard() {
                 <Compass className="w-4 h-4" />
                 Explore more
               </button>
-              <button className="text-purple-600 font-bold text-sm hover:underline">View All</button>
+                <button onClick={() => navigate('/vocabulary')} className="text-purple-600 font-bold text-sm hover:underline">View All</button>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {sets.map((set: any) => (
-               <SetCard 
-                 key={set.id}
-                 {...set}
-                 icon={icons[set.icon] || Briefcase}
-                 color={set.id === '1' ? 'border-cyan-400' : set.id === '2' ? 'border-purple-500' : 'border-orange-400'}
-               />
-            ))}
-          </div>
+            {setsLoading && sets.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center text-slate-400">Loading sets...</div>
+            ) : sets.length === 0 ? (
+              <EmptyState
+                title="No vocabulary sets yet"
+                description="Create a set in My Library to see it on your dashboard."
+                action={
+                  <button
+                    onClick={() => navigate('/vocabulary')}
+                    className="bg-purple-600 text-white px-5 py-2.5 rounded-full font-semibold hover:bg-purple-700 transition-colors"
+                  >
+                    Go to My Library
+                  </button>
+                }
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {sets.map((set: any) => (
+                   <SetCard 
+                     key={set.id}
+                     name={set.name}
+                     description={set.description || set.category}
+                     words={set.totalWords}
+                     mastery={0}
+                     level={set.level}
+                     color={set.colorTheme === 'emerald' ? 'border-emerald-400' : set.colorTheme === 'amber' ? 'border-amber-400' : set.colorTheme === 'purple' ? 'border-purple-500' : set.colorTheme === 'rose' ? 'border-rose-400' : set.colorTheme === 'cyan' ? 'border-cyan-400' : 'border-cyan-400'}
+                     icon={set.category === 'Travel' ? Plane : set.category === 'Business' ? Briefcase : Utensils}
+                   />
+                ))}
+              </div>
+            )}
         </div>
 
         {/* Sidebar Widgets */}
         <div className="space-y-6">
           {/* Daily Review Reminder */}
-          <div className="bg-gradient-to-br from-slate-50 to-purple-50 border border-purple-100 rounded-[32px] p-8 shadow-sm relative overflow-hidden group">
+          <div className="bg-linear-to-br from-slate-50 to-purple-50 border border-purple-100 rounded-4xl p-8 shadow-sm relative overflow-hidden group">
             <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-200/30 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500" />
             <div className="relative z-10">
               <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center text-purple-600 mb-6">
@@ -212,7 +232,7 @@ export default function Dashboard() {
           {/* Quick Action: Create Set */}
           <motion.div 
             whileHover={{ y: -4 }}
-            className="border-2 border-dashed border-slate-200 rounded-[32px] p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 hover:border-purple-300 transition-all group"
+            className="border-2 border-dashed border-slate-200 rounded-4xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 hover:border-purple-300 transition-all group"
           >
             <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 group-hover:bg-purple-100 group-hover:text-purple-500 transition-all mb-4">
               <PlusCircle className="w-8 h-8" />
