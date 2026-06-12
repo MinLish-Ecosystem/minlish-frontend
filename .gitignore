@@ -1,8 +1,21 @@
+# Dependencies
 node_modules/
-build/
+
+# Build output  
 dist/
-coverage/
-.DS_Store
+
+# Env files — KHÔNG commit lên Git!
+.env
+.env.local
+.env.production.local
+
+# Logs
 *.log
-.env*
-!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

@@ -51,6 +51,7 @@ export interface VocabFilters {
   sortBy?: SortBy;
   page?: number;
   limit?: number;
+  includeProgress?: boolean;
 }
 
 export interface Pagination {
@@ -122,9 +123,10 @@ export const fetchVocabSets = createAsyncThunk(
     if (filters.tags?.length) params.set('tags', filters.tags.join(','));
     if (filters.page)     params.set('page', String(filters.page));
     if (filters.limit)    params.set('limit', String(filters.limit));
+    if (filters.includeProgress !== undefined) params.set('includeProgress', String(filters.includeProgress));
 
     const response = await api.get(`/api/v1/vocab/sets?${params}`);
-    return response.data;
+    return response.data.data;
   }
 );
 
@@ -142,7 +144,7 @@ export const fetchPublicSets = createAsyncThunk(
     if (filters.limit)    params.set('limit', String(filters.limit));
 
     const response = await api.get(`/api/v1/vocab/sets/public?${params}`);
-    return response.data;
+    return response.data.data;
   }
 );
 

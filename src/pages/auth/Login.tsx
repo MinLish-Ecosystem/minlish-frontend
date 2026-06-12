@@ -109,6 +109,9 @@ export default function Login() {
             Register now
           </Link>
         </p>
+        <p className="text-slate-500">
+          Tai khoan test: user@minlish.com  │ User@123
+        </p>
       </div>
     </motion.div>
   );
