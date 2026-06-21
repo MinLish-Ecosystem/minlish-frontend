@@ -126,7 +126,7 @@ export const fetchVocabSets = createAsyncThunk(
     if (filters.includeProgress !== undefined) params.set('includeProgress', String(filters.includeProgress));
 
     const response = await api.get(`/api/v1/vocab/sets?${params}`);
-    return response.data.data;
+    return response.data;
   }
 );
 
@@ -144,7 +144,7 @@ export const fetchPublicSets = createAsyncThunk(
     if (filters.limit)    params.set('limit', String(filters.limit));
 
     const response = await api.get(`/api/v1/vocab/sets/public?${params}`);
-    return response.data.data;
+    return response.data;
   }
 );
 
@@ -224,11 +224,11 @@ const vocabSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchVocabSets.fulfilled, (state, action) => {
+      .addCase(fetchVocabSets.fulfilled, (state, action: PayloadAction<any>) => {
         state.setsLoading = false;
         state.loading = false;
         state.sets = action.payload.data ?? [];
-        state.setsPagination = action.payload.pagination ?? null;
+        state.setsPagination = action.payload.meta ?? null;
         // Legacy support
         state.sets_legacy = action.payload.data ?? [];
       })
@@ -243,10 +243,10 @@ const vocabSlice = createSlice({
       .addCase(fetchPublicSets.pending, (state) => {
         state.publicSetsLoading = true;
       })
-      .addCase(fetchPublicSets.fulfilled, (state, action) => {
+      .addCase(fetchPublicSets.fulfilled, (state, action: PayloadAction<any>) => {
         state.publicSetsLoading = false;
         state.publicSets = action.payload.data ?? [];
-        state.publicSetsPagination = action.payload.pagination ?? null;
+        state.publicSetsPagination = action.payload.meta ?? null;
       })
       .addCase(fetchPublicSets.rejected, (state, action) => {
         state.publicSetsLoading = false;

@@ -9,6 +9,7 @@ import { deleteSet } from "../../store/slices/vocabSlice";
 import CreateSetCard from "../../components/features/vocabulary/CreateSetCard";
 import { EmptyState, TextField } from "../../components/common";
 import { toast } from "react-hot-toast";
+import api from "../../lib/api";
 
 export default function VocabularySets() {
   const dispatch = useDispatch<AppDispatch>();
@@ -73,6 +74,55 @@ export default function VocabularySets() {
       toast.error("Failed to create set. Try again.");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleExportCSV = async (setId: string, setName: string) => {
+    try {
+      const response = await api.get(`/api/v1/vocab/sets/${setId}/words`);
+      const words = response.data.data || [];
+      if (words.length === 0) {
+        toast.error("This set has no words to export.");
+        return;
+      }
+
+      // Headers cho file CSV
+      const headers = ["Word", "Pronunciation", "Part of Speech", "Meaning", "Description EN", "Note", "Examples"];
+      
+      const escapeCsv = (val: any) => {
+        if (val === null || val === undefined) return "";
+        const str = typeof val === "string" ? val : String(val);
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows = words.map((w: any) => [
+        escapeCsv(w.word),
+        escapeCsv(w.pronunciation || ""),
+        escapeCsv(w.partOfSpeech || ""),
+        escapeCsv(w.meaning),
+        escapeCsv(w.descriptionEN || ""),
+        escapeCsv(w.note || ""),
+        escapeCsv((w.examples || []).join("; ")),
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map((row: any) => row.join(","))].join("\n");
+      
+      // Thêm BOM (Byte Order Mark) \ufeff để Excel đọc Unicode tiếng Việt/Anh chuẩn
+      const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${setName.replace(/\\s+/g, "_")}_words.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("CSV exported successfully!");
+    } catch (err) {
+      console.error("Failed to export CSV:", err);
+      toast.error("Failed to export CSV. Try again.");
     }
   };
 
@@ -169,6 +219,7 @@ export default function VocabularySets() {
               colorTheme={set.colorTheme}
               onClick={() => navigate(`/vocabulary/${set.id}`)}
               onEditSet={() => navigate(`/vocabulary/${set.id}`)}
+              onExportCSV={() => handleExportCSV(set.id, set.name)}
               onDeleteSet={async () => {
                 const ok = window.confirm(`Delete set "${set.name}"? This cannot be undone.`);
                 if (!ok) return;

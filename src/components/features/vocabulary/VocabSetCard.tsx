@@ -13,6 +13,7 @@ export interface VocabSetCardProps {
   onClick?: () => void;
   onEditSet?: () => void;
   onDeleteSet?: () => void;
+  onExportCSV?: () => void;
 }
 
 const themeStyles = {
@@ -70,6 +71,7 @@ export default function VocabSetCard({
   onClick,
   onEditSet,
   onDeleteSet,
+  onExportCSV,
 }: VocabSetCardProps) {
   const styles = themeStyles[colorTheme] || themeStyles.blue;
   const [showMenu, setShowMenu] = useState(false);
@@ -94,7 +96,7 @@ export default function VocabSetCard({
     >
       <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity" ref={menuRef}>
         <button
-          className="text-slate-400 hover:text-purple-600 relative z-20"
+          className="text-slate-400 hover:text-purple-600 relative z-20 cursor-pointer"
           onClick={(e) => {
             e.stopPropagation();
             setShowMenu((s) => !s);
@@ -108,17 +110,23 @@ export default function VocabSetCard({
 
         {showMenu && (
           <div
-            className="absolute right-0 mt-10 w-40 bg-white border border-slate-200 rounded-lg shadow-md py-2 z-30"
+            className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-lg shadow-md py-2 z-30"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50"
+              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 cursor-pointer"
               onClick={() => { setShowMenu(false); onEditSet && onEditSet(); }}
             >
               Edit
             </button>
             <button
-              className="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-slate-50"
+              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 cursor-pointer"
+              onClick={() => { setShowMenu(false); onExportCSV && onExportCSV(); }}
+            >
+              Export CSV
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-slate-50 cursor-pointer"
               onClick={() => { setShowMenu(false); onDeleteSet && onDeleteSet(); }}
             >
               Delete
