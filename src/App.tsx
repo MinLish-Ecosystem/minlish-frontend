@@ -30,6 +30,9 @@ const Explore = lazy(() => import("./pages/explore/Explore"));
 const ExploreAll = lazy(() => import("./pages/explore/ExploreAll"));
 const ExploreSetDetail = lazy(() => import("./pages/explore/ExploreSetDetail"));
 
+// Learn
+const FlashcardSession = lazy(() => import("./pages/learn/FlashcardSession"));
+
 // ─── Shared loading fallback ──────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -110,6 +113,22 @@ export default function App() {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <CreateEditVocabSet />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/learn/:setId"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <FlashcardSession />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/learn/session"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <FlashcardSession />
                 </Suspense>
               }
             />

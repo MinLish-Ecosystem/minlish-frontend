@@ -97,6 +97,23 @@ export default function Dashboard() {
     dispatch(fetchVocabSets({}));
   }, [dispatch]);
 
+  // Navigate to flashcard session for the most recently updated set
+  const handleResumeLesson = () => {
+    if (sets.length > 0) {
+      navigate(`/learn/${sets[0].id}`);
+    } else {
+      navigate("/vocabulary");
+    }
+  };
+
+  const handleStartReview = () => {
+    if (sets.length > 0) {
+      navigate(`/learn/${sets[0].id}`);
+    } else {
+      navigate("/vocabulary");
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       {/* Welcome Banner */}
@@ -127,6 +144,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
+            onClick={handleResumeLesson}
             className="w-fit bg-white text-purple-600 px-8 py-4 rounded-full font-bold shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
           >
             <History className="w-5 h-5" />
@@ -194,8 +212,8 @@ export default function Dashboard() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {sets.map((set: any) => (
+                   <div key={set.id} onClick={() => navigate(`/vocabulary/${set.id}`)} className="cursor-pointer">
                    <SetCard 
-                     key={set.id}
                      name={set.name}
                      description={set.description || set.category}
                      words={set.totalWords}
@@ -204,6 +222,7 @@ export default function Dashboard() {
                      color={set.colorTheme === 'emerald' ? 'border-emerald-400' : set.colorTheme === 'amber' ? 'border-amber-400' : set.colorTheme === 'purple' ? 'border-purple-500' : set.colorTheme === 'rose' ? 'border-rose-400' : set.colorTheme === 'cyan' ? 'border-cyan-400' : 'border-cyan-400'}
                      icon={set.category === 'Travel' ? Plane : set.category === 'Business' ? Briefcase : Utensils}
                    />
+                   </div>
                 ))}
               </div>
             )}
@@ -222,7 +241,10 @@ export default function Dashboard() {
               <p className="text-slate-500 mb-8 leading-relaxed">
                 You have <span className="text-purple-600 font-bold text-lg mx-1">42</span> words due for Spaced Repetition review today.
               </p>
-              <button className="w-full bg-[#4648d4] text-white py-4 rounded-2xl font-bold shadow-xl shadow-purple-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+              <button
+                onClick={handleStartReview}
+                className="w-full bg-[#4648d4] text-white py-4 rounded-2xl font-bold shadow-xl shadow-purple-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
                 Start Review
                 <ArrowRight className="w-5 h-5" />
               </button>
@@ -232,6 +254,7 @@ export default function Dashboard() {
           {/* Quick Action: Create Set */}
           <motion.div 
             whileHover={{ y: -4 }}
+            onClick={() => navigate('/vocabulary/new')}
             className="border-2 border-dashed border-slate-200 rounded-4xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 hover:border-purple-300 transition-all group"
           >
             <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 group-hover:bg-purple-100 group-hover:text-purple-500 transition-all mb-4">

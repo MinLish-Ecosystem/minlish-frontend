@@ -12,10 +12,13 @@ import {
   Search,
   Bell,
   Moon,
-  HelpCircle
+  HelpCircle,
+  Zap
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { cn } from "../../lib/utils";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store";
 
 const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
   <NavLink
@@ -35,10 +38,19 @@ const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: 
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { sets } = useSelector((state: RootState) => state.vocab);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleStartSession = () => {
+    if (sets.length > 0) {
+      navigate(`/learn/${sets[0].id}`);
+    } else {
+      navigate("/vocabulary");
+    }
   };
 
   return (
@@ -110,7 +122,11 @@ export default function MainLayout() {
               </button>
             </div>
             
-            <button className="bg-[#4648d4] text-white px-5 py-2 rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-shadow">
+            <button
+              onClick={handleStartSession}
+              className="bg-[#4648d4] text-white px-5 py-2 rounded-full text-sm font-bold shadow-md hover:shadow-lg hover:scale-[1.03] transition-all flex items-center gap-2"
+            >
+              <Zap className="w-4 h-4 fill-white/70" />
               Start Session
             </button>
             

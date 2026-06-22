@@ -18,6 +18,9 @@ interface DraftWord {
   note?: string;
   imageUrl?: string;
   audioUrl?: string;
+  synonyms?: string[];
+  antonyms?: string[];
+  descriptionEN?: string;
   isNew: boolean;
   isModified: boolean;
   isDeleted: boolean;
@@ -86,7 +89,10 @@ export default function CreateEditVocabSet() {
     note: "",
     imageUrl: "",
     imageSource: "upload" as "upload" | "url",
-    audioUrl: ""
+    audioUrl: "",
+    synonyms: "",
+    antonyms: "",
+    descriptionEN: ""
   });
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -128,6 +134,9 @@ export default function CreateEditVocabSet() {
             note: w.note || "",
             imageUrl: w.imageUrl || "",
             audioUrl: w.audioUrl || "",
+            synonyms: w.synonyms || [],
+            antonyms: w.antonyms || [],
+            descriptionEN: w.descriptionEN || "",
             isNew: false,
             isModified: false,
             isDeleted: false
@@ -230,6 +239,108 @@ export default function CreateEditVocabSet() {
   };
 
   // Word Editor Modal Actions
+  // Helper to parse Dictionary API entry with improvements:
+  // - Prefer US audio, fallback UK, then any
+  // - Extract multiple definitions (first for meaning, first available for example)
+  // - Extract secondary definition for descriptionEN
+  // - Extract and deduplicate synonyms & antonyms (max 5)
+  const parseDictionaryEntry = (data: any) => {
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const entry = data[0];
+    const meanings = entry.meanings || [];
+    
+    // 1. Part of Speech
+    const firstMeaning = meanings[0];
+    const pos = firstMeaning?.partOfSpeech || "noun";
+    
+    // 2. Definition / Meaning (used for default meaning)
+    const firstDef = firstMeaning?.definitions?.[0]?.definition || "";
+    
+    // 3. Description EN (second definition in first meaning, or first definition in second meaning, or fallback)
+    const descriptionEN = meanings[0]?.definitions[1]?.definition || 
+                          meanings[1]?.definitions[0]?.definition || 
+                          firstDef || "";
+    
+    // 4. Pronunciation / Phonetic
+    const phonetic = entry.phonetic || entry.phonetics?.find((p: any) => p.text)?.text || "";
+    
+    // 5. Example (first available across all meanings/definitions)
+    let example = "";
+    for (const m of meanings) {
+      if (m.definitions) {
+        for (const d of m.definitions) {
+          if (d.example) {
+            example = d.example;
+            break;
+          }
+        }
+      }
+      if (example) break;
+    }
+    
+    // 6. Audio (prefer US, then UK, then any)
+    let audioUrl = "";
+    if (entry.phonetics && Array.isArray(entry.phonetics)) {
+      const audioPhonetics = entry.phonetics.filter((p: any) => p.audio && typeof p.audio === "string" && p.audio.length > 0);
+      if (audioPhonetics.length > 0) {
+        const usAudio = audioPhonetics.find((p: any) => p.audio.toLowerCase().includes("-us.mp3"));
+        const ukAudio = audioPhonetics.find((p: any) => p.audio.toLowerCase().includes("-uk.mp3"));
+        audioUrl = usAudio?.audio || ukAudio?.audio || audioPhonetics[0].audio;
+      }
+    }
+    
+    // 7. Synonyms (deduped, max 5)
+    const synonymSet = new Set<string>();
+    meanings.forEach((m: any) => {
+      if (m.synonyms && Array.isArray(m.synonyms)) {
+        m.synonyms.forEach((s: any) => {
+          if (typeof s === "string" && s.trim()) synonymSet.add(s.trim());
+        });
+      }
+      if (m.definitions && Array.isArray(m.definitions)) {
+        m.definitions.forEach((d: any) => {
+          if (d.synonyms && Array.isArray(d.synonyms)) {
+            d.synonyms.forEach((s: any) => {
+              if (typeof s === "string" && s.trim()) synonymSet.add(s.trim());
+            });
+          }
+        });
+      }
+    });
+    const synonyms = Array.from(synonymSet).slice(0, 5);
+    
+    // 8. Antonyms (deduped, max 5)
+    const antonymSet = new Set<string>();
+    meanings.forEach((m: any) => {
+      if (m.antonyms && Array.isArray(m.antonyms)) {
+        m.antonyms.forEach((a: any) => {
+          if (typeof a === "string" && a.trim()) antonymSet.add(a.trim());
+        });
+      }
+      if (m.definitions && Array.isArray(m.definitions)) {
+        m.definitions.forEach((d: any) => {
+          if (d.antonyms && Array.isArray(d.antonyms)) {
+            d.antonyms.forEach((a: any) => {
+              if (typeof a === "string" && a.trim()) antonymSet.add(a.trim());
+            });
+          }
+        });
+      }
+    });
+    const antonyms = Array.from(antonymSet).slice(0, 5);
+
+    return {
+      meaning: firstDef,
+      partOfSpeech: pos.toLowerCase(),
+      pronunciation: phonetic,
+      example,
+      audioUrl,
+      descriptionEN,
+      synonyms,
+      antonyms
+    };
+  };
+
   const openAddWordModal = (tab: "single" | "batch" = "single") => {
     setModalMode("add");
     setActiveTab(tab);
@@ -243,7 +354,10 @@ export default function CreateEditVocabSet() {
       note: "",
       imageUrl: "",
       imageSource: "upload",
-      audioUrl: ""
+      audioUrl: "",
+      synonyms: "",
+      antonyms: "",
+      descriptionEN: ""
     });
     setCsvFile(null);
     setBatchRawText("");
@@ -264,7 +378,10 @@ export default function CreateEditVocabSet() {
       note: word.note || "",
       imageUrl: word.imageUrl || "",
       imageSource: word.imageUrl?.startsWith("data:") ? "upload" : "url",
-      audioUrl: word.audioUrl || ""
+      audioUrl: word.audioUrl || "",
+      synonyms: word.synonyms?.join(", ") || "",
+      antonyms: word.antonyms?.join(", ") || "",
+      descriptionEN: word.descriptionEN || ""
     });
     setShowModal(true);
   };
@@ -298,24 +415,23 @@ export default function CreateEditVocabSet() {
         throw new Error("Word not found in dictionary");
       }
       const data = await res.json();
-      const entry = data[0];
-      const meanings = entry.meanings || [];
-      const firstMeaning = meanings[0];
-      const definition = firstMeaning?.definitions?.[0]?.definition || "";
-      const pos = firstMeaning?.partOfSpeech || "noun";
-      const phonetic = entry.phonetic || entry.phonetics?.find((p: any) => p.text)?.text || "";
-      const example = firstMeaning?.definitions?.[0]?.example || "";
-      const audio = entry.phonetics?.find((p: any) => p.audio && p.audio.length > 0)?.audio || "";
-
-      setModalWordData((prev) => ({
-        ...prev,
-        meaning: definition,
-        partOfSpeech: pos.toLowerCase(),
-        pronunciation: phonetic,
-        example: example,
-        audioUrl: audio
-      }));
-      toast.success("Dictionary details auto-filled!");
+      const details = parseDictionaryEntry(data);
+      if (details) {
+        setModalWordData((prev) => ({
+          ...prev,
+          meaning: details.meaning,
+          partOfSpeech: details.partOfSpeech,
+          pronunciation: details.pronunciation,
+          example: details.example,
+          audioUrl: details.audioUrl,
+          descriptionEN: details.descriptionEN,
+          synonyms: details.synonyms.join(", "),
+          antonyms: details.antonyms.join(", ")
+        }));
+        toast.success("Dictionary details auto-filled!");
+      } else {
+        toast.error("Could not parse dictionary details");
+      }
     } catch (err) {
       toast.error("Could not find dictionary details for this word");
     } finally {
@@ -350,6 +466,13 @@ export default function CreateEditVocabSet() {
       return;
     }
 
+    const parsedSynonyms = modalWordData.synonyms.trim()
+      ? modalWordData.synonyms.split(",").map(s => s.trim()).filter(Boolean)
+      : [];
+    const parsedAntonyms = modalWordData.antonyms.trim()
+      ? modalWordData.antonyms.split(",").map(s => s.trim()).filter(Boolean)
+      : [];
+
     if (modalMode === "add") {
       const newWord: DraftWord = {
         id: "temp_" + Date.now(),
@@ -361,6 +484,9 @@ export default function CreateEditVocabSet() {
         note: modalWordData.note.trim(),
         imageUrl: modalWordData.imageUrl,
         audioUrl: modalWordData.audioUrl,
+        synonyms: parsedSynonyms,
+        antonyms: parsedAntonyms,
+        descriptionEN: modalWordData.descriptionEN.trim(),
         isNew: true,
         isModified: false,
         isDeleted: false
@@ -381,6 +507,9 @@ export default function CreateEditVocabSet() {
               note: modalWordData.note.trim(),
               imageUrl: modalWordData.imageUrl,
               audioUrl: modalWordData.audioUrl,
+              synonyms: parsedSynonyms,
+              antonyms: parsedAntonyms,
+              descriptionEN: modalWordData.descriptionEN.trim(),
               isModified: true
             };
           }
@@ -469,6 +598,9 @@ export default function CreateEditVocabSet() {
             partOfSpeech: pos.toLowerCase(),
             example,
             note,
+            synonyms: [],
+            antonyms: [],
+            descriptionEN: "",
             isValid: word.trim().length > 0 && meaning.trim().length > 0
           });
         }
@@ -500,6 +632,9 @@ export default function CreateEditVocabSet() {
             partOfSpeech: "noun",
             example: "",
             note: "",
+            synonyms: [],
+            antonyms: [],
+            descriptionEN: "",
             isValid: splitFields[0].trim().length > 0 && splitFields[1].trim().length > 0
           });
         } else if (line.trim()) {
@@ -511,6 +646,9 @@ export default function CreateEditVocabSet() {
             partOfSpeech: "noun",
             example: "",
             note: "",
+            synonyms: [],
+            antonyms: [],
+            descriptionEN: "",
             isValid: false // Needs meaning lookup/input
           });
         }
@@ -535,25 +673,24 @@ export default function CreateEditVocabSet() {
           const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(item.word.trim())}`);
           if (res.ok) {
             const data = await res.json();
-            const entry = data[0];
-            const meanings = entry.meanings || [];
-            const firstMeaning = meanings[0];
-            const definition = firstMeaning?.definitions?.[0]?.definition || "";
-            const pos = firstMeaning?.partOfSpeech || "noun";
-            const phonetic = entry.phonetic || entry.phonetics?.find((p: any) => p.text)?.text || "";
-            const example = firstMeaning?.definitions?.[0]?.example || "";
-            const audio = entry.phonetics?.find((p: any) => p.audio && p.audio.length > 0)?.audio || "";
-
-            updated[i] = {
-              ...item,
-              meaning: definition,
-              partOfSpeech: pos.toLowerCase(),
-              pronunciation: phonetic,
-              example: example,
-              audioUrl: audio,
-              isValid: item.word.trim().length > 0 && definition.trim().length > 0
-            };
-            successCount++;
+            const details = parseDictionaryEntry(data);
+            if (details) {
+              updated[i] = {
+                ...item,
+                meaning: details.meaning,
+                partOfSpeech: details.partOfSpeech,
+                pronunciation: details.pronunciation,
+                example: details.example,
+                audioUrl: details.audioUrl,
+                synonyms: details.synonyms,
+                antonyms: details.antonyms,
+                descriptionEN: details.descriptionEN,
+                isValid: item.word.trim().length > 0 && details.meaning.trim().length > 0
+              };
+              successCount++;
+            } else {
+              failedCount++;
+            }
           } else {
             failedCount++;
           }
@@ -586,6 +723,9 @@ export default function CreateEditVocabSet() {
       note: item.note || "",
       imageUrl: "",
       audioUrl: item.audioUrl || "",
+      synonyms: item.synonyms || [],
+      antonyms: item.antonyms || [],
+      descriptionEN: item.descriptionEN || "",
       isNew: true,
       isModified: false,
       isDeleted: false
@@ -682,7 +822,10 @@ export default function CreateEditVocabSet() {
           examples: w.examples?.length ? w.examples : undefined,
           note: w.note || undefined,
           imageUrl: w.imageUrl || undefined,
-          audioUrl: w.audioUrl || undefined
+          audioUrl: w.audioUrl || undefined,
+          synonyms: w.synonyms?.length ? w.synonyms : undefined,
+          antonyms: w.antonyms?.length ? w.antonyms : undefined,
+          descriptionEN: w.descriptionEN || undefined
         }));
 
       // Modified existing words
@@ -696,7 +839,10 @@ export default function CreateEditVocabSet() {
           examples: w.examples?.length ? w.examples : undefined,
           note: w.note || undefined,
           imageUrl: w.imageUrl || undefined,
-          audioUrl: w.audioUrl || undefined
+          audioUrl: w.audioUrl || undefined,
+          synonyms: w.synonyms?.length ? w.synonyms : undefined,
+          antonyms: w.antonyms?.length ? w.antonyms : undefined,
+          descriptionEN: w.descriptionEN || undefined
         }));
 
       // Deleted existing words
@@ -1338,12 +1484,48 @@ export default function CreateEditVocabSet() {
                     />
                   </div>
 
+                  {/* English Description */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">English Description (Optional)</label>
+                    <textarea
+                      placeholder="An explanation or definition of the word in English..."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm resize-none"
+                      rows={2}
+                      value={modalWordData.descriptionEN}
+                      onChange={(e) => setModalWordData({ ...modalWordData, descriptionEN: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Synonyms */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Synonyms (Optional, comma-separated)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. happy, joyful, cheerful"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      value={modalWordData.synonyms}
+                      onChange={(e) => setModalWordData({ ...modalWordData, synonyms: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Antonyms */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Antonyms (Optional, comma-separated)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. sad, sorrowful, depressed"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      value={modalWordData.antonyms}
+                      onChange={(e) => setModalWordData({ ...modalWordData, antonyms: e.target.value })}
+                    />
+                  </div>
+
                   {/* Optional Note */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-700">Note (Optional)</label>
                     <input
                       type="text"
-                      placeholder="Context notes, collocations, synonyms..."
+                      placeholder="Context notes, collocations, word origins..."
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                       value={modalWordData.note}
                       onChange={(e) => setModalWordData({ ...modalWordData, note: e.target.value })}
