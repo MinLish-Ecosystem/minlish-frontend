@@ -13,6 +13,7 @@ export interface VocabSet {
   id: string;
   name: string;
   description?: string;
+  coverUrl?: string;
   category: VocabCategory;
   level: VocabLevel;
   colorTheme: ColorTheme;

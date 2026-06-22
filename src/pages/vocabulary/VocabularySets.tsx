@@ -10,6 +10,7 @@ import CreateSetCard from "../../components/features/vocabulary/CreateSetCard";
 import { EmptyState, TextField } from "../../components/common";
 import { toast } from "react-hot-toast";
 import api from "../../lib/api";
+import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 
 export default function VocabularySets() {
   const dispatch = useDispatch<AppDispatch>();
@@ -129,6 +130,9 @@ export default function VocabularySets() {
   const categoryPills: Array<VocabCategory | ""> = ["", "General", "IELTS", "Business", "Travel", "Technology", "Academic", "Other"];
   const hasSets = Array.isArray(sets) && sets.length > 0;
 
+  // Lazy-load set cards — show 12 first, reveal more as user scrolls
+  const { visibleItems: visibleSets, sentinelRef, hasMore } = useInfiniteScroll(sets ?? [], 12);
+
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Header Section */}
@@ -146,7 +150,7 @@ export default function VocabularySets() {
             Explore More
           </button>
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => navigate("/vocabulary/new")}
             className="flex items-center gap-2 py-2.5 px-5 rounded-lg bg-linear-to-r from-purple-500 to-indigo-600 text-white font-semibold hover:scale-105 hover:-translate-y-1 hover:shadow-lg transition-all duration-200"
           >
             <Plus className="w-5 h-5" />
@@ -197,7 +201,7 @@ export default function VocabularySets() {
           description="Create your first vocabulary set to start organizing words."
           action={
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => navigate("/vocabulary/new")}
               className="flex items-center gap-2 py-2.5 px-5 rounded-lg bg-linear-to-r from-purple-500 to-indigo-600 text-white font-semibold hover:scale-105 transition-all duration-200"
             >
               <Plus className="w-5 h-5" />
@@ -207,7 +211,7 @@ export default function VocabularySets() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sets.map((set) => (
+          {visibleSets.map((set) => (
             <VocabSetCard
               key={set.id}
               id={set.id}
@@ -218,7 +222,7 @@ export default function VocabularySets() {
               mastery={0}
               colorTheme={set.colorTheme}
               onClick={() => navigate(`/vocabulary/${set.id}`)}
-              onEditSet={() => navigate(`/vocabulary/${set.id}`)}
+              onEditSet={() => navigate(`/vocabulary/${set.id}/edit`)}
               onExportCSV={() => handleExportCSV(set.id, set.name)}
               onDeleteSet={async () => {
                 const ok = window.confirm(`Delete set "${set.name}"? This cannot be undone.`);
@@ -232,7 +236,9 @@ export default function VocabularySets() {
               }}
             />
           ))}
-          <CreateSetCard onClick={() => setShowCreate(true)} />
+          <CreateSetCard onClick={() => navigate("/vocabulary/new")} />
+          {/* Sentinel for infinite scroll */}
+          {hasMore && <div ref={sentinelRef} className="col-span-full h-4" />}
         </div>
       )}
 

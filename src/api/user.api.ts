@@ -18,3 +18,24 @@ export const requestEmailChange = (payload: RequestEmailChangeRequest) =>
 export const confirmEmailChange = (payload: ConfirmEmailChangeRequest) =>
   api.post<ApiResponse<null>>('/api/v1/user/confirm-email-change', payload);
 
+export interface LearningProfile {
+  learningGoal: "ielts" | "toeic" | "business" | "travel" | "general" | "other";
+  targetLevel?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+  currentLevel?: "beginner" | "intermediate" | "advanced";
+  dailyGoal: number;
+  reviewPerDay: number;
+  reminderTime?: string;
+  timezone?: string;
+  preferences?: {
+    pushNotification?: boolean;
+    emailNotification?: boolean;
+    soundEffect?: boolean;
+  };
+}
+
+export const getLearningProfile = () =>
+  api.get<ApiResponse<LearningProfile>>('/api/v1/user/learning-profile');
+
+export const updateLearningProfile = (payload: Partial<LearningProfile>) =>
+  api.put<ApiResponse<LearningProfile>>('/api/v1/user/learning-profile', payload);
+

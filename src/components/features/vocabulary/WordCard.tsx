@@ -1,5 +1,5 @@
 import React from "react";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Volume2 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
 export type WordStatus = "New" | "Learning" | "Mastered";
@@ -9,6 +9,7 @@ export interface WordCardProps {
   pronunciation: string;
   definition: string;
   status: WordStatus;
+  audioUrl?: string;
   onEdit?: () => void;
   onDelete?: () => void;
 }
@@ -41,10 +42,31 @@ export default function WordCard({
   pronunciation,
   definition,
   status,
+  audioUrl,
   onEdit,
   onDelete,
 }: WordCardProps) {
   const styles = statusStyles[status] || statusStyles.New;
+
+  const playAudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.play().catch(() => {
+        speakFallback();
+      });
+    } else {
+      speakFallback();
+    }
+  };
+
+  const speakFallback = () => {
+    if (term) {
+      const utterance = new SpeechSynthesisUtterance(term);
+      utterance.lang = "en-US";
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden">
@@ -53,7 +75,16 @@ export default function WordCard({
       
       <div className="flex justify-between items-start mb-3">
         <div>
-          <h3 className="text-xl font-bold text-slate-800">{term}</h3>
+          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            {term}
+            <button
+              onClick={playAudio}
+              className="p-1 text-slate-400 hover:text-purple-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              title="Listen Pronunciation"
+            >
+              <Volume2 className="w-4 h-4" />
+            </button>
+          </h3>
           <p className="text-sm text-slate-500 italic">{pronunciation}</p>
         </div>
         <span

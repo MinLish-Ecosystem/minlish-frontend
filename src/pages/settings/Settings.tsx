@@ -1,43 +1,84 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-hot-toast";
 import { extractFieldErrors, getErrorMessage, FieldErrors } from "../../lib/formErrors";
-import { getProfile, updateProfile, requestEmailChange, confirmEmailChange } from "../../api/user.api";
+import { getProfile, updateProfile, requestEmailChange, confirmEmailChange, getLearningProfile, updateLearningProfile, LearningProfile } from "../../api/user.api";
 
 export default function Settings() {
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
+
+  const pendingUpdatesRef = useRef<Partial<LearningProfile>>({});
+  const debounceTimerRef = useRef<any>(null);
+
+  const debouncedUpdate = (update: Partial<LearningProfile>) => {
+    // Merge updates into the pending changes object
+    pendingUpdatesRef.current = {
+      ...pendingUpdatesRef.current,
+      ...update,
+      // Handle preferences sub-object merging properly
+      preferences: update.preferences 
+        ? { ...pendingUpdatesRef.current.preferences, ...update.preferences }
+        : pendingUpdatesRef.current.preferences
+    };
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(async () => {
+      const payload = pendingUpdatesRef.current;
+      pendingUpdatesRef.current = {}; // Reset
+      try {
+        await updateLearningProfile(payload);
+      } catch (error) {
+        console.error("Failed to sync learning profile:", error);
+      }
+    }, 500); // 500ms delay
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const [formData, setFormData] = useState({
     name: user?.name || "",
     avatar: user?.avatar || "",
   });
   const [profileErrors, setProfileErrors] = useState<FieldErrors>({});
-  const [emailChange, setEmailChange] = useState({ newEmail: "", otp: "" });
+  const [emailChange, setEmailChange] = useState({ newEmail: user?.email || "", otp: "" });
   const [emailChangeErrors, setEmailChangeErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState({ profile: false, requestEmail: false, confirmEmail: false });
+  const [avatarLoading, setAvatarLoading] = useState(false);
   const [hasEditedProfile, setHasEditedProfile] = useState(false);
   const [showAvatarInput, setShowAvatarInput] = useState(false);
+  const [avatarSource, setAvatarSource] = useState<"upload" | "url">("upload");
+  const emailInitializedRef = useRef(false);
 
-  // Load persistent learning goals from localStorage
-  const [learningGoals, setLearningGoals] = useState(() => {
-    const saved = localStorage.getItem("minlish_learning_goals");
-    return saved ? JSON.parse(saved) : {
-      primaryFocus: "General Vocabulary",
-      dailyWordTarget: 25,
-      dailyReviewTarget: 50,
-    };
+  useEffect(() => {
+    if (user?.email && !emailInitializedRef.current) {
+      setEmailChange((prev) => ({ ...prev, newEmail: user.email }));
+      emailInitializedRef.current = true;
+    }
+  }, [user?.email]);
+
+  // Load persistent learning goals
+  const [learningGoals, setLearningGoals] = useState({
+    primaryFocus: "general",
+    dailyWordTarget: 20,
+    dailyReviewTarget: 40,
   });
 
-  // Load app settings from localStorage
-  const [appSettings, setAppSettings] = useState(() => {
-    const saved = localStorage.getItem("minlish_app_settings");
-    return saved ? JSON.parse(saved) : {
-      pushNotifications: true,
-      darkMode: document.documentElement.classList.contains("dark"),
-      reminderTime: "20:00",
-    };
+  // Load app settings
+  const [appSettings, setAppSettings] = useState({
+    pushNotifications: true,
+    darkMode: document.documentElement.classList.contains("dark"),
+    reminderTime: "20:00",
   });
 
   useEffect(() => {
@@ -64,7 +105,29 @@ export default function Settings() {
       }
     };
 
+    const loadLearningProfile = async () => {
+      try {
+        const response = await getLearningProfile();
+        if (response.data.success && response.data.data) {
+          const profile = response.data.data;
+          setLearningGoals({
+            primaryFocus: profile.learningGoal || "general",
+            dailyWordTarget: profile.dailyGoal || 20,
+            dailyReviewTarget: profile.reviewPerDay || 40,
+          });
+          setAppSettings((prev) => ({
+            ...prev,
+            pushNotifications: profile.preferences?.pushNotification ?? true,
+            reminderTime: profile.reminderTime || "20:00",
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load learning profile:", error);
+      }
+    };
+
     loadProfile();
+    loadLearningProfile();
   }, [hasEditedProfile, updateUser]);
 
   const handleSave = async () => {
@@ -73,22 +136,43 @@ export default function Settings() {
     try {
       const response = await updateProfile({
         name: formData.name,
-        avatar: formData.avatar || undefined,
       });
       if (response.data.success) {
-        updateUser({ name: formData.name, avatar: formData.avatar || null });
-        toast.success("Profile updated successfully!");
+        updateUser({ name: formData.name });
+        toast.success("Display name updated successfully!");
         setHasEditedProfile(false);
-        setShowAvatarInput(false);
       }
     } catch (error: any) {
       const fieldErrors = extractFieldErrors(error);
       if (Object.keys(fieldErrors).length > 0) {
         setProfileErrors(fieldErrors);
       }
-      toast.error(getErrorMessage(error, "Failed to save profile"));
+      toast.error(getErrorMessage(error, "Failed to save profile name"));
     } finally {
       setLoading((prev) => ({ ...prev, profile: false }));
+    }
+  };
+
+  const handleSaveAvatar = async () => {
+    setAvatarLoading(true);
+    setProfileErrors((prev) => ({ ...prev, avatar: "" }));
+    try {
+      const response = await updateProfile({
+        avatar: formData.avatar || null,
+      });
+      if (response.data.success) {
+        updateUser({ avatar: response.data.data.avatar });
+        toast.success("Avatar updated successfully!");
+        setShowAvatarInput(false);
+      }
+    } catch (error: any) {
+      const fieldErrors = extractFieldErrors(error);
+      if (fieldErrors.avatar) {
+        setProfileErrors((prev) => ({ ...prev, avatar: fieldErrors.avatar }));
+      }
+      toast.error(getErrorMessage(error, "Failed to update avatar"));
+    } finally {
+      setAvatarLoading(false);
     }
   };
 
@@ -129,7 +213,7 @@ export default function Settings() {
       });
       if (response.data.success) {
         updateUser({ email: emailChange.newEmail });
-        setEmailChange({ newEmail: "", otp: "" });
+        setEmailChange({ newEmail: emailChange.newEmail, otp: "" });
         toast.success("Email updated successfully!");
       }
     } catch (error: any) {
@@ -149,15 +233,19 @@ export default function Settings() {
   };
 
   const handleGoalChange = (field: string, value: any) => {
-    const updated = { ...learningGoals, [field]: value };
-    setLearningGoals(updated);
-    localStorage.setItem("minlish_learning_goals", JSON.stringify(updated));
+    const updatedGoals = { ...learningGoals, [field]: value };
+    setLearningGoals(updatedGoals);
+
+    debouncedUpdate({
+      learningGoal: updatedGoals.primaryFocus as any,
+      dailyGoal: updatedGoals.dailyWordTarget,
+      reviewPerDay: updatedGoals.dailyReviewTarget,
+    });
   };
 
   const handleAppSettingChange = (field: string, value: any) => {
-    const updated = { ...appSettings, [field]: value };
-    setAppSettings(updated);
-    localStorage.setItem("minlish_app_settings", JSON.stringify(updated));
+    const updatedSettings = { ...appSettings, [field]: value };
+    setAppSettings(updatedSettings);
 
     if (field === "darkMode") {
       if (value) {
@@ -167,11 +255,35 @@ export default function Settings() {
         document.documentElement.classList.remove("dark");
         document.documentElement.classList.add("light");
       }
+      return;
+    }
+
+    debouncedUpdate({
+      reminderTime: updatedSettings.reminderTime,
+      preferences: {
+        pushNotification: updatedSettings.pushNotifications,
+      },
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image file size must be less than 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, avatar: reader.result as string });
+        setHasEditedProfile(true);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const isEmailChanged = emailChange.newEmail !== "" && emailChange.newEmail !== user?.email;
-
+  const isEmailChanged = emailChange.newEmail !== (user?.email || "");
+  const isNameChanged = formData.name.trim() !== (user?.name || "").trim() && formData.name.trim() !== "";
   const defaultAvatar = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200";
 
   return (
@@ -183,7 +295,7 @@ export default function Settings() {
         <div className="relative group">
           <img 
             alt="Profile Picture" 
-            className="w-24 h-24 rounded-full object-cover border-4 border-surface-container shadow-sm" 
+            className="w-24 h-24 rounded-full object-cover border-4 border-surface-container shadow-sm bg-slate-50" 
             src={formData.avatar || user?.avatar || defaultAvatar}
           />
         </div>
@@ -193,25 +305,59 @@ export default function Settings() {
           <p className="font-body-md text-body-md text-on-surface-variant mt-1">Intermediate Learner • Joined 2023</p>
           
           {showAvatarInput && (
-            <div className="mt-4 flex gap-2 w-full max-w-md mx-auto sm:mx-0">
-              <input 
-                type="text" 
-                placeholder="Enter avatar image URL..." 
-                className="flex-1 px-3 py-1 bg-surface-container-low border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                value={formData.avatar}
-                onChange={(e) => {
-                  setFormData({ ...formData, avatar: e.target.value });
-                  setHasEditedProfile(true);
-                  if (profileErrors.avatar) {
-                    setProfileErrors((prev) => ({ ...prev, avatar: "" }));
-                  }
-                }}
-              />
+            <div className="mt-4 flex flex-col sm:flex-row gap-4 items-center w-full max-w-md mx-auto sm:mx-0 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setAvatarSource("upload")}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex-1 sm:flex-initial ${
+                    avatarSource === "upload" ? "bg-[#1000a3] text-white" : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                  }`}
+                >
+                  File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAvatarSource("url")}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex-1 sm:flex-initial ${
+                    avatarSource === "url" ? "bg-[#1000a3] text-white" : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                  }`}
+                >
+                  URL
+                </button>
+              </div>
+
+              {avatarSource === "upload" ? (
+                <div className="flex-1 w-full">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="w-full text-xs text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300 cursor-pointer"
+                  />
+                </div>
+              ) : (
+                <input 
+                  type="text" 
+                  placeholder="Enter avatar image URL..." 
+                  className="flex-1 px-3 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm w-full"
+                  value={formData.avatar || ""}
+                  onChange={(e) => {
+                    setFormData({ ...formData, avatar: e.target.value });
+                    setHasEditedProfile(true);
+                    if (profileErrors.avatar) {
+                      setProfileErrors((prev) => ({ ...prev, avatar: "" }));
+                    }
+                  }}
+                />
+              )}
+              
               <button 
-                onClick={() => setShowAvatarInput(false)}
-                className="px-3 py-1 bg-primary text-white text-xs rounded-lg hover:shadow-lg transition-all"
+                onClick={handleSaveAvatar}
+                disabled={avatarLoading}
+                className="px-3 py-1 bg-[#1000a3] text-white text-xs rounded-lg hover:shadow-lg transition-all w-full sm:w-auto disabled:opacity-50 flex items-center justify-center gap-1"
               >
-                Done
+                {avatarLoading ? "Saving..." : "Done"}
               </button>
             </div>
           )}
@@ -258,7 +404,7 @@ export default function Settings() {
                 <input 
                   type="email" 
                   className="w-full px-4 py-2 bg-surface-container-low border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-body-md text-body-md text-on-surface"
-                  value={emailChange.newEmail !== "" ? emailChange.newEmail : (user?.email || "")}
+                  value={emailChange.newEmail}
                   onChange={(e) => {
                     setEmailChange({ ...emailChange, newEmail: e.target.value });
                     if (emailChangeErrors.newEmail) {
@@ -315,14 +461,14 @@ export default function Settings() {
               <div className="pt-4 flex gap-3">
                 <button 
                   onClick={handleSave}
-                  disabled={loading.profile || !hasEditedProfile}
-                  className="px-6 py-2 bg-primary text-on-primary rounded-lg font-label-md text-label-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading.profile || !isNameChanged}
+                  className="px-6 py-2 bg-[#1000a3] text-white rounded-lg font-label-md text-label-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading.profile ? "Saving..." : "Save Changes"}
                 </button>
                 {isEmailChanged && (
                   <button 
-                    onClick={() => setEmailChange({ newEmail: "", otp: "" })}
+                    onClick={() => setEmailChange({ newEmail: user?.email || "", otp: "" })}
                     className="px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-lg font-label-md text-label-md transition-all"
                   >
                     Cancel Email Edit
@@ -343,10 +489,12 @@ export default function Settings() {
                   value={learningGoals.primaryFocus}
                   onChange={(e) => handleGoalChange("primaryFocus", e.target.value)}
                 >
-                  <option>General Vocabulary</option>
-                  <option>IELTS Preparation</option>
-                  <option>TOEFL Preparation</option>
-                  <option>Business English</option>
+                  <option value="general">General Vocabulary</option>
+                  <option value="ielts">IELTS Preparation</option>
+                  <option value="toeic">TOEIC Preparation</option>
+                  <option value="business">Business English</option>
+                  <option value="travel">Travel English</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
               

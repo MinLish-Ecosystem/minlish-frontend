@@ -93,7 +93,7 @@ api.interceptors.response.use(
     } catch (refreshError) {
       clearAuthStorage();
       if (window.location.pathname !== "/login") {
-        window.location.assign("/login");
+        window.dispatchEvent(new CustomEvent("session-expired"));
       }
       return Promise.reject(refreshError);
     }

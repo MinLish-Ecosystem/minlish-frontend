@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Brain, CheckCircle, Hourglass, Edit3, Plus } from "lucide-react";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -9,6 +9,7 @@ import WordCard, { WordStatus } from "../../components/features/vocabulary/WordC
 import { EmptyState, TextField } from "../../components/common";
 import api from "../../lib/api";
 import { toast } from "react-hot-toast";
+import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 
 const mapWordStatus = (status?: VocabWord["status"]): WordStatus => {
   switch (status) {
@@ -24,6 +25,7 @@ const mapWordStatus = (status?: VocabWord["status"]): WordStatus => {
 
 export default function VocabSetDetail() {
   const { setId } = useParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { currentSet, currentSetWords, currentSetLoading } = useSelector((state: RootState) => state.vocab);
   const [showEdit, setShowEdit] = useState(false);
@@ -101,6 +103,9 @@ export default function VocabSetDetail() {
   const wordsCount = currentSet?.totalWords ?? currentSetWords.length;
   const masteredCount = currentSetWords.filter((word) => mapWordStatus(word.status) === "Mastered").length;
   const learningCount = currentSetWords.filter((word) => mapWordStatus(word.status) === "Learning").length;
+
+  // Lazy-load word cards — show 12 first, load more as the user scrolls
+  const { visibleItems: visibleWords, sentinelRef: wordSentinelRef, hasMore: hasMoreWords } = useInfiniteScroll(currentSetWords, 12);
 
   const splitList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
@@ -282,7 +287,7 @@ export default function VocabSetDetail() {
 
         <div className="mt-6 md:mt-0 flex gap-3">
           <button
-            onClick={() => setShowEdit(true)}
+            onClick={() => navigate(`/vocabulary/${setId}/edit`)}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-purple-600 border-2 border-purple-500 hover:bg-purple-50 transition-colors flex items-center gap-2"
           >
             <Edit3 className="w-4 h-4" />
@@ -306,17 +311,20 @@ export default function VocabSetDetail() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {currentSetWords.map((word) => (
+          {visibleWords.map((word) => (
             <WordCard
               key={word.id}
               term={word.word}
               pronunciation={word.pronunciation || ""}
               definition={word.meaning}
               status={mapWordStatus(word.status)}
+              audioUrl={word.audioUrl}
               onEdit={() => openEditWord(word)}
               onDelete={() => handleDeleteWord(word.id)}
             />
           ))}
+          {/* Sentinel for infinite scroll */}
+          {hasMoreWords && <div ref={wordSentinelRef} className="col-span-full h-4" />}
         </div>
       )}
 

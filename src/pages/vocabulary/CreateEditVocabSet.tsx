@@ -1,0 +1,1584 @@
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-hot-toast";
+import api from "../../lib/api";
+import { fetchSetDetail, fetchVocabSets, VocabSet, Word, VocabCategory, VocabLevel, ColorTheme } from "../../store/slices/vocabSlice";
+import { AppDispatch, RootState } from "../../store";
+import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+
+// Extended interface for managing local drafts of words
+interface DraftWord {
+  id: string; // temp client-side ID or existing MongoDB ID
+  word: string;
+  meaning: string;
+  pronunciation?: string;
+  partOfSpeech?: string;
+  examples?: string[];
+  note?: string;
+  imageUrl?: string;
+  audioUrl?: string;
+  isNew: boolean;
+  isModified: boolean;
+  isDeleted: boolean;
+}
+
+const CATEGORIES: VocabCategory[] = [
+  "General",
+  "Business",
+  "IELTS",
+  "TOEIC",
+  "Travel",
+  "Technology",
+  "Academic",
+  "Psychology",
+  "Science",
+  "Other"
+];
+
+const LEVELS: VocabLevel[] = ["Beginner", "Intermediate", "Advanced", "Academic"];
+
+const COLOR_THEMES: ColorTheme[] = ["purple", "blue", "emerald", "amber", "rose", "cyan"];
+
+const DEFAULT_COVER_IMAGE = "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=800";
+
+export default function CreateEditVocabSet() {
+  const { setId } = useParams<{ setId: string }>();
+  const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
+
+  // Fetch current set details from Redux if in Edit Mode
+  const { currentSet } = useSelector((state: RootState) => state.vocab);
+
+  // Main Form States (Set details)
+  const [setName, setSetName] = useState("");
+  const [setDescription, setSetDescription] = useState("");
+  const [category, setSetCategory] = useState<VocabCategory>("General");
+  const [level, setSetLevel] = useState<VocabLevel>("Intermediate");
+  const [colorTheme, setColorTheme] = useState<ColorTheme>("purple");
+  const [tags, setSetTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [coverUrl, setCoverUrl] = useState("");
+  const [showCoverInput, setShowCoverInput] = useState(false);
+  const [coverSource, setCoverSource] = useState<"upload" | "url">("upload");
+
+  // Words Draft list
+  const [draftWords, setDraftWords] = useState<DraftWord[]>([]);
+
+  // Page Loadings
+  const [loading, setLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  // Word Editor Modal States
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
+  const [activeTab, setActiveTab] = useState<"single" | "batch">("single");
+  const [modalWordId, setModalWordId] = useState<string | null>(null);
+
+  // Single word form inputs
+  const [modalWordData, setModalWordData] = useState({
+    word: "",
+    pronunciation: "",
+    partOfSpeech: "noun",
+    meaning: "",
+    example: "",
+    note: "",
+    imageUrl: "",
+    imageSource: "upload" as "upload" | "url",
+    audioUrl: ""
+  });
+  const [modalLoading, setModalLoading] = useState(false);
+
+  // Batch import inputs
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [batchRawText, setBatchRawText] = useState("");
+  const [previewItems, setPreviewItems] = useState<any[]>([]);
+  const [batchLookupLoading, setBatchLookupLoading] = useState(false);
+
+  // Navigation Guard logic
+  const originalSetRef = useRef<any>(null);
+
+  // Initial Load (Edit Mode vs Create Mode)
+  useEffect(() => {
+    const loadData = async () => {
+      if (setId) {
+        setLoading(true);
+        try {
+          const payload = await dispatch(fetchSetDetail(setId)).unwrap();
+          const setInfo = payload.set;
+          originalSetRef.current = setInfo;
+
+          setSetName(setInfo.name);
+          setSetDescription(setInfo.description || "");
+          setSetCategory(setInfo.category);
+          setSetLevel(setInfo.level);
+          setColorTheme(setInfo.colorTheme || "purple");
+          setSetTags(setInfo.tags || []);
+          setIsPublic(setInfo.isPublic || false);
+          setCoverUrl(setInfo.coverUrl || "");
+
+          const wordsList: DraftWord[] = payload.words.map((w: any) => ({
+            id: w.id || w._id,
+            word: w.word,
+            meaning: w.meaning,
+            pronunciation: w.pronunciation || "",
+            partOfSpeech: w.partOfSpeech || "noun",
+            examples: w.examples || [],
+            note: w.note || "",
+            imageUrl: w.imageUrl || "",
+            audioUrl: w.audioUrl || "",
+            isNew: false,
+            isModified: false,
+            isDeleted: false
+          }));
+          setDraftWords(wordsList);
+        } catch (err) {
+          toast.error("Failed to load set details");
+          navigate("/vocabulary");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Reset states for Create Mode
+        setSetName("");
+        setSetDescription("");
+        setSetCategory("General");
+        setSetLevel("Intermediate");
+        setColorTheme("purple");
+        setSetTags([]);
+        setIsPublic(false);
+        setCoverUrl("");
+        setDraftWords([]);
+        originalSetRef.current = null;
+      }
+    };
+    loadData();
+  }, [setId, dispatch, navigate]);
+
+  // Calculate dirty state for Navigation Guard
+  const isDirty =
+    setName !== (originalSetRef.current?.name || "") ||
+    setDescription !== (originalSetRef.current?.description || "") ||
+    coverUrl !== (originalSetRef.current?.coverUrl || "") ||
+    category !== (originalSetRef.current?.category || "General") ||
+    level !== (originalSetRef.current?.level || "Intermediate") ||
+    colorTheme !== (originalSetRef.current?.colorTheme || "purple") ||
+    isPublic !== (originalSetRef.current?.isPublic || false) ||
+    JSON.stringify(tags) !== JSON.stringify(originalSetRef.current?.tags || []) ||
+    draftWords.some(w => w.isNew || w.isModified || w.isDeleted);
+
+  // Block unsaved tab closing / browser reloads
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved changes. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  const handleBackToLibrary = () => {
+    if (isDirty) {
+      if (window.confirm("You have unsaved changes. Are you sure you want to discard them?")) {
+        navigate(setId ? `/vocabulary/${setId}` : "/vocabulary");
+      }
+    } else {
+      navigate(setId ? `/vocabulary/${setId}` : "/vocabulary");
+    }
+  };
+
+  // Tag management
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && tagInput.trim()) {
+      e.preventDefault();
+      const cleaned = tagInput.trim();
+      if (tags.includes(cleaned)) {
+        toast.error("Tag already exists");
+        return;
+      }
+      if (tags.length >= 10) {
+        toast.error("You can add a maximum of 10 tags");
+        return;
+      }
+      setSetTags([...tags, cleaned]);
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setSetTags(tags.filter(t => t !== tagToRemove));
+  };
+
+  // Cover image select file
+  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Cover image size must be less than 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCoverUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Word Editor Modal Actions
+  const openAddWordModal = (tab: "single" | "batch" = "single") => {
+    setModalMode("add");
+    setActiveTab(tab);
+    setModalWordId(null);
+    setModalWordData({
+      word: "",
+      pronunciation: "",
+      partOfSpeech: "noun",
+      meaning: "",
+      example: "",
+      note: "",
+      imageUrl: "",
+      imageSource: "upload",
+      audioUrl: ""
+    });
+    setCsvFile(null);
+    setBatchRawText("");
+    setPreviewItems([]);
+    setShowModal(true);
+  };
+
+  const openEditWordModal = (word: DraftWord) => {
+    setModalMode("edit");
+    setActiveTab("single");
+    setModalWordId(word.id);
+    setModalWordData({
+      word: word.word,
+      pronunciation: word.pronunciation || "",
+      partOfSpeech: word.partOfSpeech || "noun",
+      meaning: word.meaning,
+      example: word.examples?.[0] || "",
+      note: word.note || "",
+      imageUrl: word.imageUrl || "",
+      imageSource: word.imageUrl?.startsWith("data:") ? "upload" : "url",
+      audioUrl: word.audioUrl || ""
+    });
+    setShowModal(true);
+  };
+
+  const handleModalWordImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("Word illustration image must be less than 2MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setModalWordData((prev) => ({ ...prev, imageUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // English dictionary API single Auto-Fill
+  const handleAutoFill = async () => {
+    const lookup = modalWordData.word.trim();
+    if (!lookup) {
+      toast.error("Please enter a word first");
+      return;
+    }
+    setModalLoading(true);
+    try {
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(lookup)}`);
+      if (!res.ok) {
+        throw new Error("Word not found in dictionary");
+      }
+      const data = await res.json();
+      const entry = data[0];
+      const meanings = entry.meanings || [];
+      const firstMeaning = meanings[0];
+      const definition = firstMeaning?.definitions?.[0]?.definition || "";
+      const pos = firstMeaning?.partOfSpeech || "noun";
+      const phonetic = entry.phonetic || entry.phonetics?.find((p: any) => p.text)?.text || "";
+      const example = firstMeaning?.definitions?.[0]?.example || "";
+      const audio = entry.phonetics?.find((p: any) => p.audio && p.audio.length > 0)?.audio || "";
+
+      setModalWordData((prev) => ({
+        ...prev,
+        meaning: definition,
+        partOfSpeech: pos.toLowerCase(),
+        pronunciation: phonetic,
+        example: example,
+        audioUrl: audio
+      }));
+      toast.success("Dictionary details auto-filled!");
+    } catch (err) {
+      toast.error("Could not find dictionary details for this word");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Text-To-Speech / Audio playback
+  const playAudio = () => {
+    if (modalWordData.audioUrl) {
+      const audio = new Audio(modalWordData.audioUrl);
+      audio.play().catch(() => {
+        toast.error("Failed to play audio");
+      });
+    } else if (modalWordData.word) {
+      const utterance = new SpeechSynthesisUtterance(modalWordData.word);
+      utterance.lang = "en-US";
+      window.speechSynthesis.speak(utterance);
+    } else {
+      toast.error("Nothing to play");
+    }
+  };
+
+  // Save changes from word editor modal back to draftWords state
+  const handleSaveWordFromModal = () => {
+    if (!modalWordData.word.trim()) {
+      toast.error("Word is required");
+      return;
+    }
+    if (!modalWordData.meaning.trim()) {
+      toast.error("Meaning is required");
+      return;
+    }
+
+    if (modalMode === "add") {
+      const newWord: DraftWord = {
+        id: "temp_" + Date.now(),
+        word: modalWordData.word.trim(),
+        meaning: modalWordData.meaning.trim(),
+        pronunciation: modalWordData.pronunciation.trim(),
+        partOfSpeech: modalWordData.partOfSpeech,
+        examples: modalWordData.example.trim() ? [modalWordData.example.trim()] : [],
+        note: modalWordData.note.trim(),
+        imageUrl: modalWordData.imageUrl,
+        audioUrl: modalWordData.audioUrl,
+        isNew: true,
+        isModified: false,
+        isDeleted: false
+      };
+      setDraftWords([...draftWords, newWord]);
+      toast.success("Word added to draft list!");
+    } else if (modalMode === "edit" && modalWordId) {
+      setDraftWords(
+        draftWords.map((w) => {
+          if (w.id === modalWordId) {
+            return {
+              ...w,
+              word: modalWordData.word.trim(),
+              meaning: modalWordData.meaning.trim(),
+              pronunciation: modalWordData.pronunciation.trim(),
+              partOfSpeech: modalWordData.partOfSpeech,
+              examples: modalWordData.example.trim() ? [modalWordData.example.trim()] : [],
+              note: modalWordData.note.trim(),
+              imageUrl: modalWordData.imageUrl,
+              audioUrl: modalWordData.audioUrl,
+              isModified: true
+            };
+          }
+          return w;
+        })
+      );
+      toast.success("Word updated in draft list!");
+    }
+    setShowModal(false);
+  };
+
+  // Parse CSV file content
+  const handleCsvFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCsvFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        parseAndSetPreview(text, "csv");
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  // Parse copy-pasted text
+  const handleRawTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setBatchRawText(text);
+    parseAndSetPreview(text, "text");
+  };
+
+  const parseAndSetPreview = (rawContent: string, format: "csv" | "text") => {
+    if (!rawContent.trim()) {
+      setPreviewItems([]);
+      return;
+    }
+
+    const items: any[] = [];
+    const lines = rawContent.split("\n").map(l => l.trim()).filter(Boolean);
+
+    if (format === "csv") {
+      let startIdx = 0;
+      if (lines.length > 0) {
+        const firstLine = lines[0].toLowerCase();
+        if (firstLine.includes("word") || firstLine.includes("term") || firstLine.includes("meaning")) {
+          startIdx = 1;
+        }
+      }
+      for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i];
+        const fields: string[] = [];
+        let currentField = "";
+        let inQuotes = false;
+        for (let j = 0; j < line.length; j++) {
+          const c = line[j];
+          if (c === '"') {
+            if (inQuotes && j + 1 < line.length && line[j + 1] === '"') {
+              currentField += '"';
+              j++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (c === ',' && !inQuotes) {
+            fields.push(currentField.trim());
+            currentField = "";
+          } else {
+            currentField += c;
+          }
+        }
+        fields.push(currentField.trim());
+
+        const word = fields[0] || "";
+        const meaning = fields[1] || "";
+        const pronunciation = fields[2] || "";
+        const pos = fields[3] || "noun";
+        const example = fields[4] || "";
+        const note = fields[5] || "";
+
+        if (word) {
+          items.push({
+            id: "import_" + i + "_" + Date.now(),
+            word,
+            meaning,
+            pronunciation,
+            partOfSpeech: pos.toLowerCase(),
+            example,
+            note,
+            isValid: word.trim().length > 0 && meaning.trim().length > 0
+          });
+        }
+      }
+    } else {
+      // Text parsing
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const delimiters = [" - ", " : ", " | ", "\t", ":", "-"];
+        let splitFields: string[] = [];
+
+        for (const delim of delimiters) {
+          if (line.includes(delim)) {
+            const idx = line.indexOf(delim);
+            splitFields = [
+              line.substring(0, idx).trim(),
+              line.substring(idx + delim.length).trim()
+            ];
+            break;
+          }
+        }
+
+        if (splitFields.length === 2 && splitFields[0]) {
+          items.push({
+            id: "import_" + i + "_" + Date.now(),
+            word: splitFields[0],
+            meaning: splitFields[1],
+            pronunciation: "",
+            partOfSpeech: "noun",
+            example: "",
+            note: "",
+            isValid: splitFields[0].trim().length > 0 && splitFields[1].trim().length > 0
+          });
+        } else if (line.trim()) {
+          items.push({
+            id: "import_" + i + "_" + Date.now(),
+            word: line.trim(),
+            meaning: "",
+            pronunciation: "",
+            partOfSpeech: "noun",
+            example: "",
+            note: "",
+            isValid: false // Needs meaning lookup/input
+          });
+        }
+      }
+    }
+
+    setPreviewItems(items);
+  };
+
+  // Batch auto-fill definitions using public dictionary API
+  const handleBatchAutoLookup = async () => {
+    if (previewItems.length === 0) return;
+    setBatchLookupLoading(true);
+    let successCount = 0;
+    let failedCount = 0;
+
+    const updated = [...previewItems];
+    for (let i = 0; i < updated.length; i++) {
+      const item = updated[i];
+      if (!item.meaning || item.meaning.trim() === "") {
+        try {
+          const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(item.word.trim())}`);
+          if (res.ok) {
+            const data = await res.json();
+            const entry = data[0];
+            const meanings = entry.meanings || [];
+            const firstMeaning = meanings[0];
+            const definition = firstMeaning?.definitions?.[0]?.definition || "";
+            const pos = firstMeaning?.partOfSpeech || "noun";
+            const phonetic = entry.phonetic || entry.phonetics?.find((p: any) => p.text)?.text || "";
+            const example = firstMeaning?.definitions?.[0]?.example || "";
+            const audio = entry.phonetics?.find((p: any) => p.audio && p.audio.length > 0)?.audio || "";
+
+            updated[i] = {
+              ...item,
+              meaning: definition,
+              partOfSpeech: pos.toLowerCase(),
+              pronunciation: phonetic,
+              example: example,
+              audioUrl: audio,
+              isValid: item.word.trim().length > 0 && definition.trim().length > 0
+            };
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        } catch (e) {
+          failedCount++;
+        }
+      }
+    }
+
+    setPreviewItems(updated);
+    setBatchLookupLoading(false);
+    toast.success(`Batch dictionary lookup: ${successCount} words filled, ${failedCount} failed.`);
+  };
+
+  // Confirm import items from batch tab into main draft list
+  const handleImportParsedItems = () => {
+    const validItems = previewItems.filter(item => item.word.trim() && item.meaning.trim());
+    if (validItems.length === 0) {
+      toast.error("No valid terms to import. Ensure terms have words and meanings.");
+      return;
+    }
+
+    const newWords: DraftWord[] = validItems.map((item) => ({
+      id: "temp_" + Math.random().toString(36).substr(2, 9),
+      word: item.word.trim(),
+      meaning: item.meaning.trim(),
+      pronunciation: item.pronunciation || "",
+      partOfSpeech: item.partOfSpeech || "noun",
+      examples: item.example?.trim() ? [item.example.trim()] : [],
+      note: item.note || "",
+      imageUrl: "",
+      audioUrl: item.audioUrl || "",
+      isNew: true,
+      isModified: false,
+      isDeleted: false
+    }));
+
+    setDraftWords([...draftWords, ...newWords]);
+    toast.success(`Imported ${newWords.length} terms into draft list successfully!`);
+    setShowModal(false);
+  };
+
+  // Reorder words in local state
+  const handleMoveWord = (index: number, direction: "up" | "down") => {
+    const activeWords = draftWords.filter(w => !w.isDeleted);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= activeWords.length) return;
+
+    const originalIdx = draftWords.indexOf(activeWords[index]);
+    const originalTargetIdx = draftWords.indexOf(activeWords[targetIndex]);
+
+    const updated = [...draftWords];
+    const temp = updated[originalIdx];
+    updated[originalIdx] = updated[originalTargetIdx];
+    updated[originalTargetIdx] = temp;
+
+    setDraftWords(updated);
+  };
+
+  // Delete word from local state
+  const handleDeleteWord = (word: DraftWord) => {
+    if (word.isNew) {
+      setDraftWords(draftWords.filter(w => w.id !== word.id));
+    } else {
+      setDraftWords(
+        draftWords.map((w) => {
+          if (w.id === word.id) {
+            return { ...w, isDeleted: true };
+          }
+          return w;
+        })
+      );
+    }
+    toast.success("Word removed from list!");
+  };
+
+  // Save Orchestrator (Batch save Set + Words)
+  const handleSaveSet = async () => {
+    if (!setName.trim()) {
+      toast.error("Please enter a Set Title");
+      return;
+    }
+
+    const activeCount = draftWords.filter(w => !w.isDeleted).length;
+    if (activeCount === 0) {
+      toast.error("Please add at least one vocabulary term to the set");
+      return;
+    }
+
+    setSaveLoading(true);
+    try {
+      let savedSetId = setId;
+
+      const payload = {
+        name: setName.trim(),
+        description: setDescription.trim(),
+        category,
+        level,
+        colorTheme,
+        tags,
+        isPublic,
+        coverUrl: coverUrl || undefined
+      };
+
+      // 1. Save Set Metadata
+      if (!setId) {
+        const res = await api.post("/api/v1/vocab/sets", payload);
+        savedSetId = res.data.data.id;
+      } else {
+        await api.put(`/api/v1/vocab/sets/${setId}`, payload);
+      }
+
+      if (!savedSetId) {
+        throw new Error("Failed to save set metadata");
+      }
+
+      // 2. Coordinated Word CRUD batch calls via Promise.all
+      // Newly created words
+      const addPromises = draftWords
+        .filter(w => w.isNew && !w.isDeleted)
+        .map(w => api.post(`/api/v1/vocab/sets/${savedSetId}/words`, {
+          word: w.word.trim(),
+          meaning: w.meaning.trim(),
+          pronunciation: w.pronunciation || undefined,
+          partOfSpeech: w.partOfSpeech || undefined,
+          examples: w.examples?.length ? w.examples : undefined,
+          note: w.note || undefined,
+          imageUrl: w.imageUrl || undefined,
+          audioUrl: w.audioUrl || undefined
+        }));
+
+      // Modified existing words
+      const updatePromises = draftWords
+        .filter(w => w.isModified && !w.isNew && !w.isDeleted)
+        .map(w => api.put(`/api/v1/vocab/sets/${savedSetId}/words/${w.id}`, {
+          word: w.word.trim(),
+          meaning: w.meaning.trim(),
+          pronunciation: w.pronunciation || undefined,
+          partOfSpeech: w.partOfSpeech || undefined,
+          examples: w.examples?.length ? w.examples : undefined,
+          note: w.note || undefined,
+          imageUrl: w.imageUrl || undefined,
+          audioUrl: w.audioUrl || undefined
+        }));
+
+      // Deleted existing words
+      const deletePromises = draftWords
+        .filter(w => w.isDeleted && !w.isNew)
+        .map(w => api.delete(`/api/v1/vocab/sets/${savedSetId}/words/${w.id}`));
+
+      await Promise.all([...addPromises, ...updatePromises, ...deletePromises]);
+
+      toast.success(setId ? "Vocabulary set updated successfully!" : "Vocabulary set created successfully!");
+      
+      // Force refresh vocabulary sets in state
+      dispatch(fetchVocabSets({}));
+
+      // Reset dirty flag and redirect
+      originalSetRef.current = null; 
+      navigate(`/vocabulary/${savedSetId}`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to save vocabulary set");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const activeWordsList = draftWords.filter(w => !w.isDeleted);
+
+  // Lazy-load word cards — show 15 first, load more as user scrolls
+  // We use activeWordsList (the full list) for all index calculations,
+  // but only render visibleActiveWords to the DOM.
+  const { visibleItems: visibleActiveWords, sentinelRef: wordsSentinelRef, hasMore: hasMoreWords } = useInfiniteScroll(activeWordsList, 15);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+        <span className="material-symbols-outlined text-4xl text-primary animate-spin">refresh</span>
+        <p className="text-slate-500 font-medium">Loading set details...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto w-full relative z-10 py-6 px-4">
+      {/* Full-screen Loading Overlay for saving */}
+      {saveLoading && (
+        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center gap-4 text-white">
+          <span className="material-symbols-outlined text-5xl animate-spin text-[#c0c1ff]">refresh</span>
+          <p className="font-bold text-lg tracking-wide">Saving Vocabulary Set...</p>
+          <p className="text-sm text-slate-300">Synchronizing database details, please wait</p>
+        </div>
+      )}
+
+      {/* Header Actions */}
+      <header className="flex justify-between items-center gap-4 w-full mb-8">
+        <button
+          onClick={handleBackToLibrary}
+          className="flex items-center gap-2 text-slate-600 hover:text-purple-600 font-semibold text-sm hover:bg-purple-50 px-4 py-2 rounded-full transition-all"
+        >
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+          Back to Library
+        </button>
+        
+        <button
+          onClick={handleSaveSet}
+          disabled={saveLoading}
+          className="px-8 py-3 rounded-full shadow-md hover:shadow-lg bg-[#1000a3] text-white hover:-translate-y-0.5 hover:scale-[1.02] transition-all font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saveLoading ? "Saving..." : "Save Vocabulary Set"}
+        </button>
+      </header>
+
+      {/* Main Form Content */}
+      <main className="flex flex-col gap-8">
+        {/* Set Details Card */}
+        <section className="bg-surface-container-lowest/80 backdrop-blur-xl border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-3xl font-bold text-slate-800">
+              {setId ? "Edit Vocabulary Set" : "Create a New Set"}
+            </h1>
+            <p className="text-base text-slate-500 mt-1">
+              Organize your vocabulary for targeted practice and structured learning.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-5">
+            {/* Cover Image Selector */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700">Set Cover Image</label>
+              <div className="flex flex-col sm:flex-row gap-5 items-center bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <img
+                  src={coverUrl || DEFAULT_COVER_IMAGE}
+                  alt="Set Cover Preview"
+                  className="w-32 h-20 rounded-xl object-cover border border-slate-200 shadow-sm bg-white"
+                />
+                <div className="flex flex-col gap-2 w-full">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCoverInput(true);
+                        setCoverSource("upload");
+                      }}
+                      className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-300 transition-all"
+                    >
+                      Choose Cover Image
+                    </button>
+                    {coverUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setCoverUrl("")}
+                        className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-all"
+                      >
+                        Remove Cover
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Supports JPG, PNG (Max 5MB). If empty, the default library cover will be used.
+                  </p>
+
+                  {showCoverInput && (
+                    <div className="mt-2 p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 w-full max-w-md">
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setCoverSource("upload")}
+                          className={`px-2.5 py-1 text-xs font-bold rounded-md ${
+                            coverSource === "upload" ? "bg-[#1000a3] text-white" : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          File
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCoverSource("url")}
+                          className={`px-2.5 py-1 text-xs font-bold rounded-md ${
+                            coverSource === "url" ? "bg-[#1000a3] text-white" : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          URL
+                        </button>
+                      </div>
+
+                      {coverSource === "upload" ? (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCoverFileChange}
+                          className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-600 hover:file:bg-slate-200 cursor-pointer"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="Paste image URL..."
+                          className="flex-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary w-full"
+                          value={coverUrl.startsWith("data:") ? "" : coverUrl}
+                          onChange={(e) => setCoverUrl(e.target.value)}
+                        />
+                      )}
+
+                      <button
+                        onClick={() => setShowCoverInput(false)}
+                        className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded-md"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Set Title */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700">Set Title</label>
+              <input
+                type="text"
+                placeholder="e.g., IELTS Academic Essential Verbs, N3 Grammar..."
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-800 font-medium text-sm"
+                value={setName}
+                onChange={(e) => setSetName(e.target.value)}
+              />
+            </div>
+
+            {/* Description */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700">Description (Optional)</label>
+              <textarea
+                placeholder="Briefly describe the context, focus, or purpose of this set..."
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-700 text-sm resize-none"
+                rows={2}
+                value={setDescription}
+                onChange={(e) => setSetDescription(e.target.value)}
+              />
+            </div>
+
+            {/* Selects: Category, Level, ColorTheme */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">Category</label>
+                <select
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary text-sm font-medium"
+                  value={category}
+                  onChange={(e) => setSetCategory(e.target.value as VocabCategory)}
+                >
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">Level</label>
+                <select
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary text-sm font-medium"
+                  value={level}
+                  onChange={(e) => setSetLevel(e.target.value as VocabLevel)}
+                >
+                  {LEVELS.map(lvl => (
+                    <option key={lvl} value={lvl}>{lvl}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">Color Accent</label>
+                <select
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary text-sm font-medium"
+                  value={colorTheme}
+                  onChange={(e) => setColorTheme(e.target.value as ColorTheme)}
+                >
+                  {COLOR_THEMES.map(theme => (
+                    <option key={theme} value={theme}>{theme.charAt(0).toUpperCase() + theme.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Tags & Privacy Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
+              {/* Tags Pills */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">sell</span>
+                  Tags (Press Enter to add)
+                </label>
+                <div className="flex flex-wrap gap-2 items-center min-h-[50px] bg-white border border-slate-200 rounded-xl p-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-all cursor-text">
+                  {tags.map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-1 bg-[#8127cf]/10 text-[#8127cf] text-xs px-2.5 py-1 rounded-lg border border-[#8127cf]/20 font-semibold shadow-xs">
+                      {tag}
+                      <button
+                        onClick={() => handleRemoveTag(tag)}
+                        className="hover:text-red-500 transition-colors flex items-center justify-center rounded-full hover:bg-[#8127cf]/20 p-0.5"
+                      >
+                        <span className="material-symbols-outlined text-[12px] leading-none font-bold">close</span>
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    placeholder={tags.length === 0 ? "Add tag..." : ""}
+                    className="flex-1 bg-transparent border-none focus:ring-0 p-0.5 text-sm outline-none text-slate-700 min-w-[100px]"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleAddTag}
+                  />
+                </div>
+              </div>
+
+              {/* Privacy Radio */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">visibility</span>
+                  Visibility
+                </label>
+                <div className="flex gap-3 items-center h-full">
+                  <label
+                    className={`relative flex items-center p-3 gap-3 rounded-xl border-2 cursor-pointer flex-1 shadow-xs transition-all ${
+                      isPublic ? "border-[#1000a3] bg-blue-50/20" : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="privacy"
+                      checked={isPublic}
+                      onChange={() => setIsPublic(true)}
+                      className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm text-slate-800">Public</span>
+                      <span className="text-xs text-slate-400">Everyone can view</span>
+                    </div>
+                    <span className={`material-symbols-outlined ml-auto text-sm ${isPublic ? "text-[#1000a3]" : "text-slate-400"}`}>public</span>
+                  </label>
+
+                  <label
+                    className={`relative flex items-center p-3 gap-3 rounded-xl border-2 cursor-pointer flex-1 shadow-xs transition-all ${
+                      !isPublic ? "border-[#1000a3] bg-blue-50/20" : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="privacy"
+                      checked={!isPublic}
+                      onChange={() => setIsPublic(false)}
+                      className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm text-slate-800">Private</span>
+                      <span className="text-xs text-slate-400">Only you can view</span>
+                    </div>
+                    <span className={`material-symbols-outlined ml-auto text-sm ${!isPublic ? "text-[#1000a3]" : "text-slate-400"}`}>lock</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Vocabulary Terms Section */}
+        <section className="flex flex-col gap-5 mt-2">
+          <div className="flex justify-between items-end border-b border-slate-200 pb-4">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary bg-primary-50 p-1.5 rounded-lg">library_books</span>
+              Vocabulary Terms
+            </h2>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => openAddWordModal("batch")}
+                  className="flex items-center gap-1.5 px-4 py-2 border border-[#1000a3] text-[#1000a3] font-semibold text-sm rounded-full hover:bg-blue-50/40 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">upload_file</span>
+                  Import CSV / Text
+                </button>
+                <button
+                  onClick={() => openAddWordModal("single")}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-[#1000a3] text-white font-semibold text-sm rounded-full hover:shadow-md transition-all hover:-translate-y-0.5"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add</span>
+                  Add Word
+                </button>
+              </div>
+              <span className="text-sm font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
+                {activeWordsList.length} {activeWordsList.length === 1 ? "Term" : "Terms"}
+              </span>
+            </div>
+          </div>
+
+          {/* Vocabulary list rendering */}
+          {activeWordsList.length === 0 ? (
+            <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-slate-200">
+              <span className="material-symbols-outlined text-slate-300 text-5xl mb-3">auto_stories</span>
+              <h3 className="font-bold text-slate-700 mb-1 text-lg">No words in this set yet</h3>
+              <p className="text-base text-slate-400 mb-6">Start building your vocabulary deck by adding your first word.</p>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={() => openAddWordModal("single")}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-bold rounded-lg transition-colors border border-slate-200"
+                >
+                  Add a Word
+                </button>
+                <button
+                  onClick={() => openAddWordModal("batch")}
+                  className="px-4 py-2 bg-[#1000a3] text-white hover:shadow-md text-sm font-bold rounded-lg transition-all"
+                >
+                  Import List
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {visibleActiveWords.map((word) => {
+                // Get the true index in the full active list for move controls
+                const idx = activeWordsList.indexOf(word);
+                return (
+                <div
+                  key={word.id}
+                  className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition-all relative group flex flex-col md:flex-row gap-4"
+                >
+                  {/* Index and Move controls */}
+                  <div className="flex md:flex-col items-center justify-between md:justify-start gap-2 pt-1.5">
+                    <span className="font-bold text-sm text-[#1000a3] bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center border border-blue-100 shadow-3xs">
+                      {idx + 1}
+                    </span>
+
+                    {/* Move controls */}
+                    <div className="flex md:flex-col gap-1">
+                      <button
+                        onClick={() => handleMoveWord(idx, "up")}
+                        disabled={idx === 0}
+                        className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-md disabled:opacity-30 disabled:hover:bg-transparent"
+                        title="Move Up"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">keyboard_arrow_up</span>
+                      </button>
+                      <button
+                        onClick={() => handleMoveWord(idx, "down")}
+                        disabled={idx === activeWordsList.length - 1}
+                        className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-md disabled:opacity-30 disabled:hover:bg-transparent"
+                        title="Move Down"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Read-Only Card Info */}
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Left details (Word / Pronunciation / Part of Speech) */}
+                    <div className="md:col-span-5 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xl font-bold text-slate-800">{word.word}</span>
+                        {word.partOfSpeech && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-bold uppercase tracking-wider">
+                            {word.partOfSpeech}
+                          </span>
+                        )}
+                        {word.pronunciation && (
+                          <span className="text-sm text-slate-400 font-medium font-sans">
+                            {word.pronunciation}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-base text-slate-700 font-medium border-l-2 border-slate-200 pl-2 mt-1">
+                        {word.meaning}
+                      </p>
+                    </div>
+
+                    {/* Right details (Examples & Note) */}
+                    <div className="md:col-span-7 flex flex-col gap-2 text-sm">
+                      {word.examples && word.examples.length > 0 && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-xs uppercase text-slate-400 tracking-wider">Example:</span>
+                          <p className="text-slate-600 italic font-sans">"{word.examples[0]}"</p>
+                        </div>
+                      )}
+                      {word.note && (
+                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs text-slate-500 mt-1">
+                          <span className="font-bold text-slate-600">Note: </span>
+                          {word.note}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Thumbnail illustration preview if uploaded */}
+                  {word.imageUrl && (
+                    <div className="hidden sm:block self-center">
+                      <img
+                        src={word.imageUrl}
+                        alt="Word Illustration"
+                        className="w-16 h-16 rounded-xl object-cover border border-slate-100 bg-slate-50 shadow-3xs"
+                      />
+                    </div>
+                  )}
+
+                  {/* Actions: Edit / Delete */}
+                  <div className="flex md:flex-col gap-2 justify-end md:justify-start items-center pt-1.5 md:border-l md:border-slate-100 md:pl-4">
+                    <button
+                      onClick={() => openEditWordModal(word)}
+                      className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-full transition-all"
+                      title="Edit Term"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteWord(word)}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                      title="Delete Term"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </div>
+                </div>
+              );
+              })}
+
+              {/* Sentinel for infinite scroll */}
+              {hasMoreWords && <div ref={wordsSentinelRef} className="h-4 w-full" />}
+
+              {/* Dash Add Button at bottom of list */}
+              <button
+                onClick={() => openAddWordModal("single")}
+                className="w-full py-6 border-2 border-dashed border-slate-300 bg-slate-50/50 rounded-2xl flex flex-col items-center justify-center gap-1.5 text-slate-500 hover:text-[#1000a3] hover:bg-blue-50/20 hover:border-[#1000a3]/40 transition-all group mt-2"
+              >
+                <div className="bg-slate-200 text-slate-600 p-2.5 rounded-full group-hover:scale-110 group-hover:bg-[#1000a3] group-hover:text-white transition-all duration-200 shadow-3xs">
+                  <span className="material-symbols-outlined text-sm font-bold leading-none">add</span>
+                </div>
+                <span className="font-bold text-sm">Add Another Term</span>
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* Bottom Spacer */}
+        <div className="h-16"></div>
+      </main>
+
+      {/* ================= ADD/EDIT WORD POPUP MODAL ================= */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={() => setShowModal(false)}
+          ></div>
+
+          {/* Modal Container */}
+          <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h3 className="font-headline-md text-lg text-slate-800 font-bold">
+                {modalMode === "add" ? "Add New Word" : "Edit Word Detail"}
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+              >
+                <span className="material-symbols-outlined text-md">close</span>
+              </button>
+            </div>
+
+            {/* Tabs (Disabled in Edit Mode since Edit is single word only) */}
+            {modalMode === "add" && (
+              <div className="flex border-b border-slate-200 px-6">
+                <button
+                  onClick={() => setActiveTab("single")}
+                  className={`px-5 py-3 font-semibold text-xs border-b-2 transition-all ${
+                    activeTab === "single"
+                      ? "border-[#1000a3] text-[#1000a3]"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Single Word
+                </button>
+                <button
+                  onClick={() => setActiveTab("batch")}
+                  className={`px-5 py-3 font-semibold text-xs border-b-2 transition-all ${
+                    activeTab === "batch"
+                      ? "border-[#1000a3] text-[#1000a3]"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Batch Import
+                </button>
+              </div>
+            )}
+
+            {/* Modal Form Scroll Area */}
+            <div className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[60vh] bg-slate-50/50">
+              {activeTab === "single" ? (
+                /* SINGLE WORD INPUTS */
+                <div className="flex flex-col gap-4">
+                  {/* Word Input & Dictionary Auto Fill */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Word / Term</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g., Serendipity"
+                        className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm font-semibold"
+                        value={modalWordData.word}
+                        onChange={(e) => setModalWordData({ ...modalWordData, word: e.target.value })}
+                      />
+                      <button
+                        onClick={handleAutoFill}
+                        disabled={modalLoading}
+                        className="flex items-center gap-1 px-4 py-2.5 bg-blue-50 border border-blue-200 hover:bg-blue-100/60 rounded-xl text-xs text-[#1000a3] font-bold transition-all disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                        {modalLoading ? "Searching..." : "Auto Fill"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Pronunciation & Part of Speech */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Pronunciation phonetic</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="/ˌserənˈdipədē/"
+                          className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm font-sans"
+                          value={modalWordData.pronunciation}
+                          onChange={(e) => setModalWordData({ ...modalWordData, pronunciation: e.target.value })}
+                        />
+                        <button
+                          onClick={playAudio}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-[#1000a3] rounded-md transition-colors"
+                          title="Speak word"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">volume_up</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">Part of Speech</label>
+                      <select
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary text-sm"
+                        value={modalWordData.partOfSpeech}
+                        onChange={(e) => setModalWordData({ ...modalWordData, partOfSpeech: e.target.value })}
+                      >
+                        <option value="noun">Noun</option>
+                        <option value="verb">Verb</option>
+                        <option value="adjective">Adjective</option>
+                        <option value="adverb">Adverb</option>
+                        <option value="phrase">Phrase</option>
+                        <option value="idiom">Idiom</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Meaning */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Meaning / Translation</label>
+                    <textarea
+                      placeholder="The occurrence and development of events by chance in a happy or beneficial way..."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm resize-none"
+                      rows={2}
+                      value={modalWordData.meaning}
+                      onChange={(e) => setModalWordData({ ...modalWordData, meaning: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Example */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Example Sentence</label>
+                    <textarea
+                      placeholder="Nature has a way of providing serendipity when you least expect it."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm resize-none"
+                      rows={2}
+                      value={modalWordData.example}
+                      onChange={(e) => setModalWordData({ ...modalWordData, example: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Optional Note */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Note (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Context notes, collocations, synonyms..."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      value={modalWordData.note}
+                      onChange={(e) => setModalWordData({ ...modalWordData, note: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Word Illustration image upload */}
+                  <div className="flex flex-col gap-1.5 bg-white p-4 rounded-2xl border border-slate-200">
+                    <label className="text-xs font-semibold text-slate-700">Word Illustration Image</label>
+                    <div className="flex gap-4 items-center mt-1">
+                      {modalWordData.imageUrl ? (
+                        <div className="relative">
+                          <img
+                            src={modalWordData.imageUrl}
+                            alt="Word Preview"
+                            className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-3xs"
+                          />
+                          <button
+                            onClick={() => setModalWordData({ ...modalWordData, imageUrl: "" })}
+                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 transition-colors shadow-3xs"
+                          >
+                            <span className="material-symbols-outlined text-[10px] leading-none font-bold">close</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-300">
+                          <span className="material-symbols-outlined text-lg">image</span>
+                        </div>
+                      )}
+
+                      <div className="flex-1 flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setModalWordData(prev => ({ ...prev, imageSource: "upload" }))}
+                            className={`px-3 py-1 text-[11px] font-bold rounded-md ${
+                              modalWordData.imageSource === "upload" ? "bg-[#1000a3] text-white" : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setModalWordData(prev => ({ ...prev, imageSource: "url" }))}
+                            className={`px-3 py-1 text-[11px] font-bold rounded-md ${
+                              modalWordData.imageSource === "url" ? "bg-[#1000a3] text-white" : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            URL
+                          </button>
+                        </div>
+
+                        {modalWordData.imageSource === "upload" ? (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleModalWordImageFile}
+                            className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-slate-100 file:text-slate-600 hover:file:bg-slate-200 cursor-pointer"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="Enter image URL..."
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs focus:outline-none"
+                            value={modalWordData.imageUrl.startsWith("data:") ? "" : modalWordData.imageUrl}
+                            onChange={(e) => setModalWordData({ ...modalWordData, imageUrl: e.target.value })}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* BATCH IMPORT TAB */
+                <div className="flex flex-col gap-4">
+                  <div className="p-4 bg-[#8127cf]/5 border border-[#8127cf]/15 rounded-2xl flex flex-col gap-2">
+                    <span className="font-semibold text-xs text-[#8127cf] flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[16px]">info</span>
+                      Batch Import Tips
+                    </span>
+                    <p className="text-[11px] text-slate-600 leading-normal">
+                      * CSV schema: <code className="bg-white/80 px-1 py-0.5 rounded border">Word,Meaning,Pronunciation,PartOfSpeech,Example,Note</code>
+                      <br />
+                      * Raw text: write words and meanings separated by a dash <code className="bg-white/80 px-1 py-0.5 rounded border">-</code> or colon <code className="bg-white/80 px-1 py-0.5 rounded border">:</code>.
+                      <br />
+                      * Alternatively, paste a raw list of words (one per line) and click <code className="font-bold text-[#1000a3]">Auto-Lookup</code> below to pull meanings automatically.
+                    </p>
+                  </div>
+
+                  {/* Drag and Drop CSV Zone */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Option A: Upload CSV File</label>
+                    <div className="w-full p-6 border-2 border-dashed border-slate-300 rounded-2xl bg-white hover:bg-slate-50/50 hover:border-slate-400 transition-colors flex flex-col items-center justify-center text-center relative cursor-pointer">
+                      <span className="material-symbols-outlined text-slate-400 text-3xl mb-1">csv</span>
+                      <span className="font-bold text-xs text-slate-700">
+                        {csvFile ? csvFile.name : "Select or Drop CSV file here"}
+                      </span>
+                      <span className="text-[10px] text-slate-400 mt-1">UTF-8 Encoded CSV up to 100 lines</span>
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleCsvFileSelection}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-center text-xs font-semibold text-slate-400 my-1">— OR —</div>
+
+                  {/* Raw Text copy-paste area */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Option B: Copy-Paste Raw Text</label>
+                    <textarea
+                      placeholder="e.g.&#10;serendipity - happy coincidence&#10;synergy - combined strength&#10;integrity"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs font-mono"
+                      rows={6}
+                      value={batchRawText}
+                      onChange={handleRawTextChange}
+                    />
+                  </div>
+
+                  {/* Batch preview items and Auto-Lookup triggers */}
+                  {previewItems.length > 0 && (
+                    <div className="flex flex-col gap-2 mt-2 bg-white p-4 rounded-2xl border border-slate-200">
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                        <span className="font-bold text-xs text-slate-700">
+                          Parsed Preview ({previewItems.length} items found)
+                        </span>
+                        <button
+                          onClick={handleBatchAutoLookup}
+                          disabled={batchLookupLoading}
+                          className="flex items-center gap-1.5 bg-blue-50 text-[#1000a3] hover:bg-blue-100/50 rounded-lg text-xs font-bold transition-all disabled:opacity-50 shadow-3xs"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                          {batchLookupLoading ? "Lookup in progress..." : "Auto-Lookup Definitions"}
+                        </button>
+                      </div>
+
+                      {/* Interactive Preview Table */}
+                      <div className="max-h-60 overflow-y-auto mt-2 border border-slate-100 rounded-lg">
+                        <table className="min-w-full text-left text-xs text-slate-700 bg-white">
+                          <thead className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
+                            <tr>
+                              <th className="px-3 py-2 w-1/3">Word</th>
+                              <th className="px-3 py-2">Meaning</th>
+                              <th className="px-3 py-2 w-10 text-center">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {previewItems.map((item, index) => (
+                              <tr key={item.id} className={item.isValid ? "" : "bg-red-50/30"}>
+                                <td className="px-3 py-1.5">
+                                  <input
+                                    type="text"
+                                    value={item.word}
+                                    onChange={(e) => {
+                                      const updated = [...previewItems];
+                                      updated[index] = {
+                                        ...item,
+                                        word: e.target.value,
+                                        isValid: e.target.value.trim().length > 0 && item.meaning.trim().length > 0
+                                      };
+                                      setPreviewItems(updated);
+                                    }}
+                                    className="bg-transparent border-none p-1 focus:ring-1 focus:ring-primary focus:bg-white rounded w-full font-semibold"
+                                  />
+                                </td>
+                                <td className="px-3 py-1.5">
+                                  <input
+                                    type="text"
+                                    placeholder="Missing meaning! Type or click Auto-Lookup"
+                                    value={item.meaning}
+                                    onChange={(e) => {
+                                      const updated = [...previewItems];
+                                      updated[index] = {
+                                        ...item,
+                                        meaning: e.target.value,
+                                        isValid: item.word.trim().length > 0 && e.target.value.trim().length > 0
+                                      };
+                                      setPreviewItems(updated);
+                                    }}
+                                    className={`bg-transparent border-none p-1 focus:ring-1 focus:ring-primary focus:bg-white rounded w-full ${
+                                      item.meaning ? "" : "text-red-500 placeholder-red-300 font-medium"
+                                    }`}
+                                  />
+                                </td>
+                                <td className="px-3 py-1.5 text-center">
+                                  <button
+                                    onClick={() => setPreviewItems(previewItems.filter(p => p.id !== item.id))}
+                                    className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                                    title="Exclude"
+                                  >
+                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-5 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-5 py-2 rounded-full text-xs font-semibold text-slate-500 hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+
+              {activeTab === "single" ? (
+                <button
+                  onClick={handleSaveWordFromModal}
+                  className="px-6 py-2 bg-[#1000a3] text-white rounded-full text-xs font-semibold hover:shadow-lg transition-all"
+                >
+                  {modalMode === "add" ? "Add Word" : "Save Changes"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleImportParsedItems}
+                  disabled={previewItems.length === 0}
+                  className="px-6 py-2 bg-[#1000a3] text-white rounded-full text-xs font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Import {previewItems.filter(p => p.isValid).length} Terms
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

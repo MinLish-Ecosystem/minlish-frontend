@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import ScrollToTop from "../common/ScrollToTop";
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -126,6 +127,7 @@ export default function MainLayout() {
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-8 overflow-x-hidden">
           <Outlet />
+          <ScrollToTop />
         </main>
       </div>
     </div>

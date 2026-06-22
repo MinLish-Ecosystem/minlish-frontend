@@ -14,3 +14,4 @@ export { default as TextField } from "./TextField";
 export { default as PasswordField } from "./PasswordField";
 export { default as SubmitButton } from "./SubmitButton";
 export { default as FormError } from "./FormError";
+export { default as ScrollToTop } from "./ScrollToTop";
