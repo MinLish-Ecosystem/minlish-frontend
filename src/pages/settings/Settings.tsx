@@ -1,34 +1,14 @@
 import React, { useState, useEffect } from "react";
-import {
-  User,
-  ShieldCheck,
-  Camera,
-  Save,
-  Mail,
-  Lock
-} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-hot-toast";
 import { extractFieldErrors, getErrorMessage, FieldErrors } from "../../lib/formErrors";
 import { getProfile, updateProfile, requestEmailChange, confirmEmailChange } from "../../api/user.api";
-import Button from "../../components/common/Button";
-import Card from "../../components/common/Card";
-import TextField from "../../components/common/TextField";
-
-const SettingSection = ({ title, icon: Icon, children }: any) => (
-  <Card className="p-8 space-y-6">
-    <div className="flex items-center gap-3">
-      <div className="p-3 bg-purple-50 rounded-2xl text-purple-600">
-        <Icon className="w-6 h-6" />
-      </div>
-      <h3 className="text-xl font-bold text-slate-800">{title}</h3>
-    </div>
-    {children}
-  </Card>
-);
 
 export default function Settings() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: user?.name || "",
     avatar: user?.avatar || "",
@@ -38,6 +18,27 @@ export default function Settings() {
   const [emailChangeErrors, setEmailChangeErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState({ profile: false, requestEmail: false, confirmEmail: false });
   const [hasEditedProfile, setHasEditedProfile] = useState(false);
+  const [showAvatarInput, setShowAvatarInput] = useState(false);
+
+  // Load persistent learning goals from localStorage
+  const [learningGoals, setLearningGoals] = useState(() => {
+    const saved = localStorage.getItem("minlish_learning_goals");
+    return saved ? JSON.parse(saved) : {
+      primaryFocus: "General Vocabulary",
+      dailyWordTarget: 25,
+      dailyReviewTarget: 50,
+    };
+  });
+
+  // Load app settings from localStorage
+  const [appSettings, setAppSettings] = useState(() => {
+    const saved = localStorage.getItem("minlish_app_settings");
+    return saved ? JSON.parse(saved) : {
+      pushNotifications: true,
+      darkMode: document.documentElement.classList.contains("dark"),
+      reminderTime: "20:00",
+    };
+  });
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -77,6 +78,8 @@ export default function Settings() {
       if (response.data.success) {
         updateUser({ name: formData.name, avatar: formData.avatar || null });
         toast.success("Profile updated successfully!");
+        setHasEditedProfile(false);
+        setShowAvatarInput(false);
       }
     } catch (error: any) {
       const fieldErrors = extractFieldErrors(error);
@@ -90,6 +93,10 @@ export default function Settings() {
   };
 
   const handleRequestEmailChange = async () => {
+    if (!emailChange.newEmail) {
+      toast.error("Please enter a new email address.");
+      return;
+    }
     setLoading((prev) => ({ ...prev, requestEmail: true }));
     setEmailChangeErrors({});
     try {
@@ -109,6 +116,10 @@ export default function Settings() {
   };
 
   const handleConfirmEmailChange = async () => {
+    if (!emailChange.newEmail || !emailChange.otp) {
+      toast.error("Please enter new email and OTP code.");
+      return;
+    }
     setLoading((prev) => ({ ...prev, confirmEmail: true }));
     setEmailChangeErrors({});
     try {
@@ -132,173 +143,328 @@ export default function Settings() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const handleGoalChange = (field: string, value: any) => {
+    const updated = { ...learningGoals, [field]: value };
+    setLearningGoals(updated);
+    localStorage.setItem("minlish_learning_goals", JSON.stringify(updated));
+  };
+
+  const handleAppSettingChange = (field: string, value: any) => {
+    const updated = { ...appSettings, [field]: value };
+    setAppSettings(updated);
+    localStorage.setItem("minlish_app_settings", JSON.stringify(updated));
+
+    if (field === "darkMode") {
+      if (value) {
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("light");
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.classList.add("light");
+      }
+    }
+  };
+
+  const isEmailChanged = emailChange.newEmail !== "" && emailChange.newEmail !== user?.email;
+
+  const defaultAvatar = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200";
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      {/* Profile Header */}
-      <div className="relative mb-20 min-h-[240px]">
-        <div className="h-[160px] w-full rounded-[32px] bg-gradient-to-r from-purple-100 to-pink-100 relative overflow-hidden" />
-
-        <div className="absolute left-8 -bottom-8 flex items-end gap-8">
-          <div className="relative group">
-            <div className="w-28 h-28 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white">
-              <img src={user?.avatar || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200"} alt="Avatar" className="w-full h-full object-cover" />
-            </div>
-            <div className="absolute bottom-1 right-1 p-2 bg-purple-600 text-white rounded-full shadow-lg">
-              <Camera className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mb-4">
-            <h2 className="text-3xl font-bold text-slate-800">{user?.name}</h2>
-            <p className="text-slate-500">{user?.email}</p>
-          </div>
+    <div className="max-w-7xl mx-auto w-full">
+      <h2 className="font-headline-lg text-headline-lg text-on-surface mb-8">Settings</h2>
+      
+      {/* Profile Header Banner */}
+      <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-primary p-6 mb-8 flex flex-col sm:flex-row items-center gap-6">
+        <div className="relative group">
+          <img 
+            alt="Profile Picture" 
+            className="w-24 h-24 rounded-full object-cover border-4 border-surface-container shadow-sm" 
+            src={formData.avatar || user?.avatar || defaultAvatar}
+          />
         </div>
-      </div>
-
-      <div className="space-y-8">
-        <SettingSection title="Personal Information" icon={User}>
-          <p className="text-sm text-slate-500">Editable fields: full name and avatar URL.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <TextField
-                id="profile-name"
-                label="Full Name"
-                value={formData.name}
-                onChange={(value) => {
-                  setFormData({ ...formData, name: value });
-                  setHasEditedProfile(true);
-                  if (profileErrors.name) {
-                    setProfileErrors((prev) => ({ ...prev, name: "" }));
-                  }
-                }}
-                error={profileErrors.name}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <TextField
-                id="profile-email"
-                label="Email Address"
-                type="email"
-                value={user?.email || ""}
-                onChange={() => undefined}
-                disabled
-                inputClassName="bg-slate-100 text-slate-400 cursor-not-allowed"
-              />
-            </div>
-
-            <div className="md:col-span-2 space-y-2">
-              <TextField
-                id="profile-avatar"
-                label="Avatar URL"
-                type="url"
+        
+        <div className="text-center sm:text-left flex-1">
+          <h3 className="font-headline-md text-headline-md text-on-surface">{user?.name || "Learner"}</h3>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Intermediate Learner • Joined 2023</p>
+          
+          {showAvatarInput && (
+            <div className="mt-4 flex gap-2 w-full max-w-md mx-auto sm:mx-0">
+              <input 
+                type="text" 
+                placeholder="Enter avatar image URL..." 
+                className="flex-1 px-3 py-1 bg-surface-container-low border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 value={formData.avatar}
-                onChange={(value) => {
-                  setFormData({ ...formData, avatar: value });
+                onChange={(e) => {
+                  setFormData({ ...formData, avatar: e.target.value });
                   setHasEditedProfile(true);
                   if (profileErrors.avatar) {
                     setProfileErrors((prev) => ({ ...prev, avatar: "" }));
                   }
                 }}
-                placeholder="https://..."
-                error={profileErrors.avatar}
               />
+              <button 
+                onClick={() => setShowAvatarInput(false)}
+                className="px-3 py-1 bg-primary text-white text-xs rounded-lg hover:shadow-lg transition-all"
+              >
+                Done
+              </button>
             </div>
-          </div>
-          <div className="flex justify-end pt-4">
-            <Button
-              onClick={handleSave}
-              loading={loading.profile}
-              loadingLabel="Saving..."
-              leftIcon={<Save className="w-5 h-5" />}
-              className="bg-purple-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Save Changes
-            </Button>
-          </div>
-        </SettingSection>
-
-        <SettingSection title="Account Security" icon={ShieldCheck}>
-          <div className="space-y-6">
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white rounded-xl shadow-sm">
-                  <Mail className="w-5 h-5 text-slate-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">Change Email</p>
-                  <p className="text-xs text-slate-400">Request OTP then confirm with the code sent to your new email.</p>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <TextField
-                    id="email-change-new"
-                    label="New Email"
-                    type="email"
-                    value={emailChange.newEmail}
-                    onChange={(value) => {
-                      setEmailChange({ ...emailChange, newEmail: value });
-                      if (emailChangeErrors.newEmail) {
-                        setEmailChangeErrors((prev) => ({ ...prev, newEmail: "" }));
-                      }
-                    }}
-                    placeholder="new-email@example.com"
-                    error={emailChangeErrors.newEmail}
-                    inputClassName="bg-white"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <TextField
-                    id="email-change-otp"
-                    label="OTP Code"
-                    value={emailChange.otp}
-                    onChange={(value) => {
-                      setEmailChange({ ...emailChange, otp: value });
-                      if (emailChangeErrors.otp) {
-                        setEmailChangeErrors((prev) => ({ ...prev, otp: "" }));
-                      }
-                    }}
-                    placeholder="6-digit code"
-                    error={emailChangeErrors.otp}
-                    inputClassName="bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button
-                  onClick={handleRequestEmailChange}
-                  loading={loading.requestEmail}
-                  loadingLabel="Sending..."
-                  variant="outline"
-                  className="border-purple-600 text-purple-600 rounded-xl hover:bg-purple-50"
-                >
-                  Send OTP
-                </Button>
-                <Button
-                  onClick={handleConfirmEmailChange}
-                  loading={loading.confirmEmail}
-                  loadingLabel="Confirming..."
-                  className="bg-purple-600 text-white rounded-xl shadow-lg shadow-purple-200 hover:scale-[1.02]"
-                >
-                  Confirm Email
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-              <div className="p-2 bg-white rounded-xl shadow-sm">
-                <Lock className="w-5 h-5 text-slate-400" />
-              </div>
+          )}
+          {profileErrors.avatar && <p className="text-xs text-error mt-1">{profileErrors.avatar}</p>}
+        </div>
+        
+        <div className="sm:ml-auto">
+          <button 
+            onClick={() => setShowAvatarInput(!showAvatarInput)}
+            className="px-4 py-2 border border-outline text-on-surface rounded-lg font-label-md text-label-md hover:bg-surface-container-low transition-colors"
+          >
+            Change Picture
+          </button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Main Column: Personal Info & Goals */}
+        <div className="lg:col-span-8 space-y-8">
+          
+          {/* Personal Information */}
+          <section className="bg-surface-container-lowest rounded-xl shadow-sm border border-slate-200 p-6">
+            <h4 className="font-title-lg text-title-lg text-on-surface mb-6">Personal Information</h4>
+            <div className="space-y-4">
               <div>
-                <p className="text-sm font-bold text-slate-800">Password</p>
-                <p className="text-xs text-slate-400">Use the "Forgot password" flow to reset your password.</p>
+                <label className="block font-label-md text-label-md text-on-surface font-semibold mb-2">Display Name</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-2 bg-surface-container-low border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-body-md text-body-md text-on-surface"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    setHasEditedProfile(true);
+                    if (profileErrors.name) {
+                      setProfileErrors((prev) => ({ ...prev, name: "" }));
+                    }
+                  }}
+                />
+                {profileErrors.name && <p className="text-xs text-error mt-1">{profileErrors.name}</p>}
+              </div>
+              
+              <div>
+                <label className="block font-label-md text-label-md text-on-surface font-semibold mb-2">Email Address</label>
+                <input 
+                  type="email" 
+                  className="w-full px-4 py-2 bg-surface-container-low border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-body-md text-body-md text-on-surface"
+                  value={emailChange.newEmail !== "" ? emailChange.newEmail : (user?.email || "")}
+                  onChange={(e) => {
+                    setEmailChange({ ...emailChange, newEmail: e.target.value });
+                    if (emailChangeErrors.newEmail) {
+                      setEmailChangeErrors((prev) => ({ ...prev, newEmail: "" }));
+                    }
+                  }}
+                />
+                {emailChangeErrors.newEmail && <p className="text-xs text-error mt-1">{emailChangeErrors.newEmail}</p>}
+              </div>
+
+              {isEmailChanged && (
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg space-y-3 mt-4">
+                  <p className="text-xs text-on-surface-variant font-medium">
+                    You are changing your email. Verification is required.
+                  </p>
+                  <div>
+                    <label className="block font-label-md text-label-md text-on-surface font-semibold mb-1">OTP Code</label>
+                    <input 
+                      type="text" 
+                      placeholder="6-digit code"
+                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-body-md text-body-md text-on-surface"
+                      value={emailChange.otp}
+                      onChange={(e) => {
+                        setEmailChange({ ...emailChange, otp: e.target.value });
+                        if (emailChangeErrors.otp) {
+                          setEmailChangeErrors((prev) => ({ ...prev, otp: "" }));
+                        }
+                      }}
+                    />
+                    {emailChangeErrors.otp && <p className="text-xs text-error mt-1">{emailChangeErrors.otp}</p>}
+                  </div>
+                  
+                  <div className="flex gap-2 pt-1">
+                    <button 
+                      type="button"
+                      onClick={handleRequestEmailChange}
+                      disabled={loading.requestEmail}
+                      className="px-4 py-2 border border-[#1000a3] text-[#1000a3] hover:bg-[#1000a3]/5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+                    >
+                      {loading.requestEmail ? "Sending..." : "Send OTP"}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={handleConfirmEmailChange}
+                      disabled={loading.confirmEmail || !emailChange.otp}
+                      className="px-4 py-2 bg-[#8127cf] text-white hover:bg-[#8127cf]/90 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+                    >
+                      {loading.confirmEmail ? "Confirming..." : "Confirm Email"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={handleSave}
+                  disabled={loading.profile || !hasEditedProfile}
+                  className="px-6 py-2 bg-primary text-on-primary rounded-lg font-label-md text-label-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading.profile ? "Saving..." : "Save Changes"}
+                </button>
+                {isEmailChanged && (
+                  <button 
+                    onClick={() => setEmailChange({ newEmail: "", otp: "" })}
+                    className="px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-lg font-label-md text-label-md transition-all"
+                  >
+                    Cancel Email Edit
+                  </button>
+                )}
               </div>
             </div>
+          </section>
+          
+          {/* Learning Goals */}
+          <section className="bg-surface-container-lowest rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-secondary p-6">
+            <h4 className="font-title-lg text-title-lg text-on-surface mb-6">Learning Goals</h4>
+            <div className="space-y-6">
+              <div>
+                <label className="block font-label-md text-label-md text-on-surface font-semibold mb-2">Primary Focus</label>
+                <select 
+                  className="w-full px-4 py-2 bg-surface-container-low border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-body-md text-body-md text-on-surface"
+                  value={learningGoals.primaryFocus}
+                  onChange={(e) => handleGoalChange("primaryFocus", e.target.value)}
+                >
+                  <option>General Vocabulary</option>
+                  <option>IELTS Preparation</option>
+                  <option>TOEFL Preparation</option>
+                  <option>Business English</option>
+                </select>
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block font-label-md text-label-md text-on-surface font-semibold">Daily Word Target</label>
+                  <span className="font-label-md text-label-md text-primary font-bold">{learningGoals.dailyWordTarget} words</span>
+                </div>
+                <input 
+                  className="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" 
+                  max="100" 
+                  min="1" 
+                  type="range" 
+                  value={learningGoals.dailyWordTarget}
+                  onChange={(e) => handleGoalChange("dailyWordTarget", parseInt(e.target.value))}
+                />
+                <div className="flex justify-between text-xs text-on-surface-variant mt-1">
+                  <span>1</span>
+                  <span>100</span>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block font-label-md text-label-md text-on-surface font-semibold">Daily Review Target</label>
+                  <span className="font-label-md text-label-md text-secondary font-bold">{learningGoals.dailyReviewTarget} reviews</span>
+                </div>
+                <input 
+                  className="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-secondary" 
+                  max="200" 
+                  min="5" 
+                  type="range" 
+                  value={learningGoals.dailyReviewTarget}
+                  onChange={(e) => handleGoalChange("dailyReviewTarget", parseInt(e.target.value))}
+                />
+                <div className="flex justify-between text-xs text-on-surface-variant mt-1">
+                  <span>5</span>
+                  <span>200</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        
+        {/* Sidebar Column: Settings & Stats */}
+        <div className="lg:col-span-4 space-y-8">
+          
+          {/* Streak Card */}
+          <div className="bg-gradient-to-br from-primary to-secondary p-6 rounded-xl text-on-primary shadow-md relative overflow-hidden">
+            <div className="relative z-10">
+              <h4 className="font-label-md text-label-md font-semibold opacity-90 mb-1">Current Streak</h4>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display-lg text-display-lg font-bold">14</span>
+                <span className="font-body-md text-body-md opacity-90">Days</span>
+              </div>
+            </div>
+            <span className="material-symbols-outlined absolute -bottom-4 -right-4 text-8xl opacity-20" data-icon="local_fire_department">local_fire_department</span>
           </div>
-        </SettingSection>
+          
+          {/* App Settings */}
+          <section className="bg-surface-container-lowest rounded-xl shadow-sm border border-slate-200 p-6">
+            <h4 className="font-title-lg text-title-lg text-on-surface mb-6">App Settings</h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <h5 className="font-label-md text-label-md font-semibold text-on-surface">Push Notifications</h5>
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">Daily reminders and alerts</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer font-sans select-none">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={appSettings.pushNotifications}
+                    onChange={(e) => handleAppSettingChange("pushNotifications", e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+              
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <h5 className="font-label-md text-label-md font-semibold text-on-surface">Dark Mode</h5>
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">Switch to dark theme</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer font-sans select-none">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={appSettings.darkMode}
+                    onChange={(e) => handleAppSettingChange("darkMode", e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+              
+              <div className="pt-2">
+                <label className="block font-label-md text-label-md text-on-surface font-semibold mb-2">Reminder Time</label>
+                <input 
+                  className="w-full px-4 py-2 bg-surface-container-low border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-body-md text-body-md text-on-surface" 
+                  type="time" 
+                  value={appSettings.reminderTime}
+                  onChange={(e) => handleAppSettingChange("reminderTime", e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+          
+          {/* Account Actions */}
+          <section className="bg-surface-container-lowest rounded-xl shadow-sm border border-slate-200 p-6">
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-error text-error rounded-lg font-label-md text-label-md font-semibold hover:bg-error-container/20 transition-all active:scale-[0.98]"
+            >
+              <span className="material-symbols-outlined" data-icon="logout">logout</span>
+              Log Out
+            </button>
+          </section>
+        </div>
       </div>
     </div>
   );

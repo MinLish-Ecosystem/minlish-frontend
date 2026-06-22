@@ -4,6 +4,55 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Poppins", "Inter", sans-serif;
+
+  /* MinLish custom design colors */
+  --color-tertiary-fixed: #ffdbd0;
+  --color-surface-dim: #cbdbf5;
+  --color-on-error-container: #93000a;
+  --color-surface-container-low: #eff4ff;
+  --color-secondary-fixed: #f0dbff;
+  --color-surface-bright: #f8f9ff;
+  --color-inverse-surface: #213145;
+  --color-on-secondary-fixed-variant: #6900b3;
+  --color-surface-variant: #d3e4fe;
+  --color-secondary: #8127cf;
+  --color-outline-variant: #c7c4d7;
+  --color-on-primary-fixed: #07006c;
+  --color-surface-container-highest: #d3e4fe;
+  --color-primary-fixed: #e1e0ff;
+  --color-on-tertiary-fixed: #3a0a00;
+  --color-on-secondary: #ffffff;
+  --color-inverse-primary: #c0c1ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-tint: #494ad6;
+  --color-on-primary-container: #a8aaff;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #2c2abc;
+  --color-secondary-fixed-dim: #ddb7ff;
+  --color-error: #ba1a1a;
+  --color-on-tertiary: #ffffff;
+  --color-on-secondary-container: #fffbff;
+  --color-background: #f8f9ff;
+  --color-secondary-container: #9c48ea;
+  --color-error-container: #ffdad6;
+  --color-on-secondary-fixed: #2c0050;
+  --color-on-surface: #0b1c30;
+  --color-on-tertiary-fixed-variant: #842402;
+  --color-on-tertiary-container: #ff9675;
+  --color-surface-container: #e5eeff;
+  --color-on-primary-fixed-variant: #2f2dbe;
+  --color-outline: #767586;
+  --color-on-background: #0b1c30;
+  --color-tertiary: #5a1500;
+  --color-tertiary-container: #812200;
+  --color-inverse-on-surface: #eaf1ff;
+  --color-surface: #f8f9ff;
+  --color-primary-fixed-dim: #c0c1ff;
+  --color-surface-container-high: #dce9ff;
+  --color-tertiary-fixed-dim: #ffb59f;
+  --color-on-error: #ffffff;
+  --color-primary: #1000a3;
+  --color-on-surface-variant: #464554;
 }
 
 body {
@@ -17,4 +66,64 @@ h1, h2, h3, h4, h5, h6 {
 /* Aurora background utility */
 .bg-aurora {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Custom typography classes from design */
+.font-title-lg {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.font-headline-md {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 600;
+}
+
+.font-label-md {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.01em;
+  font-weight: 500;
+}
+
+.font-body-lg {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+
+.font-body-md {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+.font-headline-lg {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 28px;
+  line-height: 36px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.font-label-sm {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+}
+
+.font-display-lg {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 36px;
+  line-height: 44px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
