@@ -3,7 +3,7 @@ import ScrollToTop from "../common/ScrollToTop";
 import { 
   LayoutDashboard, 
   BookOpen, 
-  GraduationCap, 
+  Users, 
   BrainCircuit, 
   BarChart3, 
   Settings, 
@@ -70,7 +70,7 @@ export default function MainLayout() {
         <nav className="flex-1 space-y-2">
           <SidebarItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
           <SidebarItem to="/vocabulary" icon={BookOpen} label="Vocabulary" />
-          <SidebarItem to="/learning" icon={GraduationCap} label="Learning" />
+          <SidebarItem to="/community" icon={Users} label="Community" />
           <SidebarItem to="/practice" icon={BrainCircuit} label="Practice" />
           <SidebarItem to="/statistics" icon={BarChart3} label="Statistics" />
         </nav>
