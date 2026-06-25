@@ -873,7 +873,7 @@ export default function CreateEditVocabSet() {
   // Lazy-load word cards — show 15 first, load more as user scrolls
   // We use activeWordsList (the full list) for all index calculations,
   // but only render visibleActiveWords to the DOM.
-  const { visibleItems: visibleActiveWords, sentinelRef: wordsSentinelRef, hasMore: hasMoreWords } = useInfiniteScroll(activeWordsList, 15);
+  const { visibleItems: visibleActiveWords, sentinelRef: wordsSentinelRef, hasMore: hasMoreWords } = useInfiniteScroll(activeWordsList, 15, []);
 
   if (loading) {
     return (

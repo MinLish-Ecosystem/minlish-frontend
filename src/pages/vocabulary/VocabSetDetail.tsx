@@ -230,7 +230,7 @@ export default function VocabSetDetail() {
   const learningCount = currentSetWords.filter((word) => mapWordStatus(word.status) === "Learning").length;
 
   // Lazy-load word cards — show 12 first, load more as the user scrolls
-  const { visibleItems: visibleWords, sentinelRef: wordSentinelRef, hasMore: hasMoreWords } = useInfiniteScroll(currentSetWords, 12);
+  const { visibleItems: visibleWords, sentinelRef: wordSentinelRef, hasMore: hasMoreWords } = useInfiniteScroll(currentSetWords, 12, []);
 
   const splitList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
