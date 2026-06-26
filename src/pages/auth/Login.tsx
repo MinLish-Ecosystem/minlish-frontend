@@ -28,7 +28,11 @@ export default function Login() {
         const { user, accessToken, refreshToken } = response.data.data;
         login({ user, accessToken, refreshToken });
         toast.success("Welcome back!");
-        navigate("/dashboard");
+        if (user.role === 'admin') {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error: any) {
       const fieldErrors = extractFieldErrors(error);

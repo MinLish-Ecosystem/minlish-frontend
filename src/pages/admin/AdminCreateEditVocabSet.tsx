@@ -45,7 +45,7 @@ const COLOR_THEMES: ColorTheme[] = ["purple", "blue", "emerald", "amber", "rose"
 
 const DEFAULT_COVER_IMAGE = "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=800";
 
-export default function CreateEditVocabSet() {
+export default function AdminCreateEditVocabSet() {
   const { setId } = useParams<{ setId: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
@@ -61,7 +61,7 @@ export default function CreateEditVocabSet() {
   const [colorTheme, setColorTheme] = useState<ColorTheme>("purple");
   const [tags, setSetTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [coverUrl, setCoverUrl] = useState("");
   const [showCoverInput, setShowCoverInput] = useState(false);
   const [coverSource, setCoverSource] = useState<"upload" | "url">("upload");
@@ -144,7 +144,7 @@ export default function CreateEditVocabSet() {
           setDraftWords(wordsList);
         } catch (err) {
           toast.error("Failed to load set details");
-          navigate("/vocabulary");
+          navigate("/admin/vocabulary");
         } finally {
           setLoading(false);
         }
@@ -156,7 +156,7 @@ export default function CreateEditVocabSet() {
         setSetLevel("Intermediate");
         setColorTheme("purple");
         setSetTags([]);
-        setIsPublic(false);
+        setIsPublic(true);
         setCoverUrl("");
         setDraftWords([]);
         originalSetRef.current = null;
@@ -193,10 +193,10 @@ export default function CreateEditVocabSet() {
   const handleBackToLibrary = () => {
     if (isDirty) {
       if (window.confirm("You have unsaved changes. Are you sure you want to discard them?")) {
-        navigate(setId ? `/vocabulary/${setId}` : "/vocabulary");
+        navigate(setId ? `/admin/vocabulary/${setId}` : "/admin/vocabulary");
       }
     } else {
-      navigate(setId ? `/vocabulary/${setId}` : "/vocabulary");
+      navigate(setId ? `/admin/vocabulary/${setId}` : "/admin/vocabulary");
     }
   };
 
@@ -999,7 +999,7 @@ export default function CreateEditVocabSet() {
 
       // Reset dirty flag and redirect
       originalSetRef.current = null; 
-      navigate(`/vocabulary/${savedSetId}`);
+      navigate(`/admin/vocabulary/${savedSetId}`);
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || "Failed to save vocabulary set");

@@ -19,6 +19,18 @@ import ResetPassword from "./pages/auth/ResetPassword";
 // ─── Main app pages (lazy-loaded, each becomes its own JS chunk) ──────────────
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
 const Settings = lazy(() => import("./pages/settings/Settings"));
+const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
+
+// Admin Layout & Pages
+const AdminLayout = lazy(() => import("./components/layout/AdminLayout"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminUserManagement = lazy(() => import("./pages/admin/AdminUserManagement"));
+const AdminContentModeration = lazy(() => import("./pages/admin/AdminContentModeration"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const Maintenance = lazy(() => import("./pages/Maintenance"));
+const AdminVocabularySets = lazy(() => import("./pages/admin/AdminVocabularySets"));
+const AdminVocabSetDetail = lazy(() => import("./pages/admin/AdminVocabSetDetail"));
+const AdminCreateEditVocabSet = lazy(() => import("./pages/admin/AdminCreateEditVocabSet"));
 
 // Vocabulary
 const VocabularySets = lazy(() => import("./pages/vocabulary/VocabularySets"));
@@ -32,6 +44,10 @@ const ExploreSetDetail = lazy(() => import("./pages/explore/ExploreSetDetail"));
 
 // Learn
 const FlashcardSession = lazy(() => import("./pages/learn/FlashcardSession"));
+
+// Practice
+const Practice = lazy(() => import("./pages/practice/Practice"));
+const PracticeSession = lazy(() => import("./pages/practice/PracticeSession"));
 
 // ─── Shared loading fallback ──────────────────────────────────────────────────
 function PageLoader() {
@@ -49,7 +65,22 @@ function PageLoader() {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useSelector((state: RootState) => state.auth);
   if (!user) return <Navigate to="/login" />;
+  if (user.role === 'admin') return <Navigate to="/admin/dashboard" />;
   return <>{children}</>;
+};
+
+const RequireAdmin = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  if (!user) return <Navigate to="/login" />;
+  if (user.role !== 'admin') return <Navigate to="/dashboard" />;
+  return <>{children}</>;
+};
+
+const RootRedirect = () => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  if (!user) return <Navigate to="/login" />;
+  if (user.role === 'admin') return <Navigate to="/admin/dashboard" />;
+  return <Navigate to="/dashboard" />;
 };
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -164,8 +195,116 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route
+              path="/notifications"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <NotificationsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/practice"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <Practice />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/practice/session"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <PracticeSession />
+                </Suspense>
+              }
+            />
+            <Route path="/" element={<RootRedirect />} />
           </Route>
+
+          {/* Admin Routes */}
+          <Route
+            element={
+              <RequireAdmin>
+                <AdminLayout />
+              </RequireAdmin>
+            }
+          >
+            <Route
+              path="/admin/dashboard"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminDashboard />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminUserManagement />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/moderation"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminContentModeration />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminSettings />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/vocabulary"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminVocabularySets />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/vocabulary/new"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminCreateEditVocabSet />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/vocabulary/:setId"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminVocabSetDetail />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/vocabulary/:setId/edit"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminCreateEditVocabSet />
+                </Suspense>
+              }
+            />
+          </Route>
+
+          {/* Maintenance Page */}
+          <Route
+            path="/maintenance"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <Maintenance />
+              </Suspense>
+            }
+          />
         </Routes>
         <Toaster position="top-right" />
       </BrowserRouter>

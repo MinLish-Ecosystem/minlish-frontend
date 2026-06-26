@@ -76,7 +76,7 @@ export default function Settings() {
 
   // Load app settings
   const [appSettings, setAppSettings] = useState({
-    pushNotifications: true,
+    emailNotifications: true,
     darkMode: document.documentElement.classList.contains("dark"),
     reminderTime: "20:00",
   });
@@ -117,7 +117,7 @@ export default function Settings() {
           });
           setAppSettings((prev) => ({
             ...prev,
-            pushNotifications: profile.preferences?.pushNotification ?? true,
+            emailNotifications: profile.preferences?.emailNotification ?? profile.preferences?.pushNotification ?? true,
             reminderTime: profile.reminderTime || "20:00",
           }));
         }
@@ -261,7 +261,8 @@ export default function Settings() {
     debouncedUpdate({
       reminderTime: updatedSettings.reminderTime,
       preferences: {
-        pushNotification: updatedSettings.pushNotifications,
+        pushNotification: updatedSettings.emailNotifications,
+        emailNotification: updatedSettings.emailNotifications,
       },
     });
   };
@@ -500,7 +501,7 @@ export default function Settings() {
               
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block font-label-md text-label-md text-on-surface font-semibold">Daily Word Target</label>
+                  <label className="block font-label-md text-label-md text-on-surface font-semibold">Daily New Words Limit</label>
                   <span className="font-label-md text-label-md text-primary font-bold">{learningGoals.dailyWordTarget} words</span>
                 </div>
                 <input 
@@ -519,7 +520,7 @@ export default function Settings() {
               
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block font-label-md text-label-md text-on-surface font-semibold">Daily Review Target</label>
+                  <label className="block font-label-md text-label-md text-on-surface font-semibold">Daily Review Words Limit</label>
                   <span className="font-label-md text-label-md text-secondary font-bold">{learningGoals.dailyReviewTarget} reviews</span>
                 </div>
                 <input 
@@ -560,15 +561,15 @@ export default function Settings() {
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div>
-                  <h5 className="font-label-md text-label-md font-semibold text-on-surface">Push Notifications</h5>
-                  <p className="font-label-sm text-label-sm text-on-surface-variant">Daily reminders and alerts</p>
+                  <h5 className="font-label-md text-label-md font-semibold text-on-surface">Email Notifications</h5>
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">Nhận email nhắc nhở ôn tập từ vựng hàng ngày</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer font-sans select-none">
                   <input 
                     type="checkbox" 
                     className="sr-only peer" 
-                    checked={appSettings.pushNotifications}
-                    onChange={(e) => handleAppSettingChange("pushNotifications", e.target.checked)}
+                    checked={appSettings.emailNotifications}
+                    onChange={(e) => handleAppSettingChange("emailNotifications", e.target.checked)}
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>

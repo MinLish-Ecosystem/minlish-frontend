@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../store";
 import { fetchSetDetail, type Word as VocabWord } from "../../store/slices/vocabSlice";
+import { useAuth } from "../../hooks/useAuth";
+import { motion } from "motion/react";
 import {
   X,
   RotateCcw,
@@ -23,6 +25,14 @@ import api from "../../lib/api";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type SRSRating = "again" | "hard" | "good" | "easy";
+
+interface PendingReview {
+  wordId: string;
+  setId: string;
+  rating: SRSRating;
+  timeSpent: number;
+  reviewedAt: string;
+}
 
 interface CardState {
   word: VocabWord;
@@ -195,6 +205,8 @@ export default function FlashcardSession() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch<AppDispatch>();
+  const { user } = useAuth();
+  const userId = user?.id || "guest";
 
   // words passed directly via navigation state (e.g. "all words" session)
   const stateWords: VocabWord[] | undefined = (location.state as any)?.words;
@@ -217,6 +229,98 @@ export default function FlashcardSession() {
   const [loading, setLoading] = useState(true);
   const [isCustomPractice, setIsCustomPractice] = useState(false);
   const cardStartTimeRef = useRef<number>(Date.now());
+
+  // ─── Batch Syncing & Buffering Ref/States ──────────────────────────────────
+  const pendingReviewsRef = useRef<PendingReview[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const getStorageKey = useCallback(() => `minlish_pending_reviews_${userId}`, [userId]);
+
+  const savePendingToStorage = useCallback((reviews: PendingReview[]) => {
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(reviews));
+    } catch (err) {
+      console.error("Failed to save pending reviews to storage", err);
+    }
+  }, [getStorageKey]);
+
+  const getPendingFromStorage = useCallback((): PendingReview[] => {
+    try {
+      const raw = localStorage.getItem(getStorageKey());
+      return raw ? JSON.parse(raw) : [];
+    } catch (err) {
+      console.error("Failed to get pending reviews from storage", err);
+      return [];
+    }
+  }, [getStorageKey]);
+
+  const clearStorage = useCallback(() => {
+    try {
+      localStorage.removeItem(getStorageKey());
+    } catch (err) {
+      console.error("Failed to clear pending reviews from storage", err);
+    }
+  }, [getStorageKey]);
+
+  const syncPendingReviews = useCallback(async (forceReviews?: PendingReview[]) => {
+    const reviewsToSync = forceReviews || pendingReviewsRef.current;
+    if (reviewsToSync.length === 0) return;
+
+    setIsSyncing(true);
+    try {
+      const res = await api.post("/api/v1/learning/sync", { reviews: reviewsToSync });
+      if (res.data.success) {
+        pendingReviewsRef.current = [];
+        clearStorage();
+      }
+    } catch (err) {
+      console.error("Failed to sync reviews with server", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [clearStorage]);
+
+  // Load pending reviews from storage on userId change
+  useEffect(() => {
+    if (userId) {
+      pendingReviewsRef.current = getPendingFromStorage();
+    }
+  }, [userId, getPendingFromStorage]);
+
+  // Offline recovery: sync leftovers on mount
+  useEffect(() => {
+    if (userId && userId !== "guest") {
+      const stored = getPendingFromStorage();
+      if (stored.length > 0) {
+        syncPendingReviews(stored);
+      }
+    }
+  }, [userId, getPendingFromStorage, syncPendingReviews]);
+
+  // Keepalive background sync on browser unload/pagehide
+  useEffect(() => {
+    const handleVisibilityOrUnload = () => {
+      if (pendingReviewsRef.current.length > 0) {
+        const body = JSON.stringify({ reviews: pendingReviewsRef.current });
+        const token = localStorage.getItem("token") || "";
+        // Modern keepalive fetch to ensure request completes after page exits
+        fetch(`${api.defaults.baseURL || ""}/api/v1/learning/sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": token ? `Bearer ${token}` : ""
+          },
+          body,
+          keepalive: true
+        });
+      }
+    };
+
+    window.addEventListener("pagehide", handleVisibilityOrUnload);
+    return () => {
+      window.removeEventListener("pagehide", handleVisibilityOrUnload);
+    };
+  }, []);
 
   // Track time spent per card
   useEffect(() => {
@@ -344,22 +448,30 @@ export default function FlashcardSession() {
       // Update stats
       setStats((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
 
-      // Try to save progress to backend via SRS SM-2 endpoint
-      const word = currentCard.word;
-      try {
-        await api.post(`/api/v1/learning/words/${word.id}/review`, {
-          setId: word.setId,
+      // Buffer review if not custom practice
+      if (!isCustomPractice) {
+        const word = currentCard.word;
+        const timeSpent = Math.max(1, Math.round((Date.now() - cardStartTimeRef.current) / 1000));
+        const newReview: PendingReview = {
+          wordId: word.id,
+          setId: word.setId || setId || "",
           rating,
-          timeSpent: Math.max(1, Math.round((Date.now() - cardStartTimeRef.current) / 1000))
-        });
-      } catch {
-        // silent — offline-tolerant
+          timeSpent,
+          reviewedAt: new Date().toISOString()
+        };
+
+        pendingReviewsRef.current.push(newReview);
+        savePendingToStorage(pendingReviewsRef.current);
       }
 
       // Animate card exit
-      setTimeout(() => {
+      setTimeout(async () => {
         if (currentIndex + 1 >= totalCards) {
           setSessionDone(true);
+          // Sync all reviews on session completion
+          if (!isCustomPractice) {
+            await syncPendingReviews();
+          }
         } else {
           setCurrentIndex((i) => i + 1);
           setIsFlipped(false);
@@ -367,7 +479,7 @@ export default function FlashcardSession() {
         setIsAnimating(false);
       }, 320);
     },
-    [currentCard, currentIndex, totalCards, isAnimating]
+    [currentCard, currentIndex, totalCards, isAnimating, isCustomPractice, setId, savePendingToStorage, syncPendingReviews]
   );
 
   // ── Shuffle ──
@@ -389,7 +501,12 @@ export default function FlashcardSession() {
   };
 
   // ── Exit ──
-  const handleExit = () => {
+  const handleExit = async () => {
+    if (!isCustomPractice && pendingReviewsRef.current.length > 0) {
+      const toastId = toast.loading("Syncing progress with server...");
+      await syncPendingReviews();
+      toast.dismiss(toastId);
+    }
     if (setId) navigate(`/vocabulary/${setId}`);
     else navigate("/vocabulary");
   };
@@ -498,6 +615,23 @@ export default function FlashcardSession() {
           <Shuffle className="w-4 h-4" />
         </button>
       </div>
+
+      {/* ── Custom Practice Banner ── */}
+      {isCustomPractice && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 rounded-2xl bg-amber-50/60 border border-amber-200/50 flex items-center gap-3 text-amber-800 shadow-sm"
+        >
+          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+            <BookOpen className="w-4 h-4" />
+          </div>
+          <div className="text-left">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800">Practice Mode (Luyện tập tự do)</h4>
+            <p className="text-[11px] text-amber-700/90 mt-0.5 font-medium">Bạn đã hoàn thành mục tiêu học tập hôm nay. Phiên này giúp ôn tập tự do mà không tính điểm SRS và không làm xáo trộn thuật toán.</p>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── SRS Legend ── */}
       <div className="flex justify-center gap-4 mb-4 text-[11px] text-slate-400 font-medium">

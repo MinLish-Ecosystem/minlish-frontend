@@ -47,6 +47,13 @@ api.interceptors.response.use(
     const status = error?.response?.status as number | undefined;
     const originalRequest = error?.config as any;
 
+    if (errorCode === 'MAINTENANCE_MODE') {
+      if (window.location.pathname !== "/maintenance") {
+        window.location.assign("/maintenance");
+      }
+      return Promise.reject(error);
+    }
+
     if (!shouldRefresh(status, errorCode) || originalRequest?._retry) {
       return Promise.reject(error);
     }

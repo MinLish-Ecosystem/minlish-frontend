@@ -3,15 +3,17 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { ChevronRight, Brain, CheckCircle, Hourglass, Users, Plus, Check } from "lucide-react";
 import WordCard, { WordStatus } from "../../components/features/vocabulary/WordCard";
-import { fetchSetDetail, clearCurrentSet, clonePublicSet } from "../../store/slices/vocabSlice";
+import { fetchSetDetail, clearCurrentSet, clonePublicSet, fetchVocabSets } from "../../store/slices/vocabSlice";
 import type { RootState } from "../../store";
 import Loading from "../../components/common/Loading";
+import toast from "react-hot-toast";
+import { getErrorMessage } from "../../lib/formErrors";
 
 export default function ExploreSetDetail() {
   const { setId } = useParams();
   const navigate  = useNavigate();
   const dispatch = useDispatch();
-  const { currentSet, currentSetWords, currentSetLoading } = useSelector((state: RootState) => state.vocab);
+  const { currentSet, currentSetWords, currentSetLoading, sets } = useSelector((state: RootState) => state.vocab);
 
   const [cloning, setCloning] = useState(false);
   const [cloned, setCloned] = useState(false);
@@ -20,22 +22,27 @@ export default function ExploreSetDetail() {
     if (setId) {
       dispatch(fetchSetDetail(setId) as any);
     }
+    dispatch(fetchVocabSets({}) as any);
 
     return () => {
       dispatch(clearCurrentSet());
     };
   }, [setId, dispatch]);
 
+  const isAlreadyCloned = sets.some(s => s.clonedFrom === setId);
+
   const handleClone = async () => {
     if (!setId) return;
 
+    const toastId = toast.loading("Adding set to your library...");
     setCloning(true);
     try {
       await dispatch(clonePublicSet(setId) as any).unwrap();
+      toast.success("Added to library successfully!", { id: toastId });
       setCloned(true);
     } catch (error) {
       console.error("Failed to clone set:", error);
-      alert("Failed to add set to your library. Please try again.");
+      toast.error(getErrorMessage(error, "Failed to add set to your library"), { id: toastId });
     } finally {
       setCloning(false);
     }
@@ -118,7 +125,7 @@ export default function ExploreSetDetail() {
         </div>
 
         <div className="mt-6 md:mt-0 flex gap-3 flex-shrink-0">
-          {cloned ? (
+          {isAlreadyCloned || cloned ? (
             <button
               onClick={() => navigate('/vocabulary')}
               className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors flex items-center gap-2"

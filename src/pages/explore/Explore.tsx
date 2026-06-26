@@ -1,60 +1,243 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Flame, PlaneTakeoff } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import { Flame, ArrowLeft, ArrowRight, Copy, Users, Star, Plus, Check } from "lucide-react";
+import toast from "react-hot-toast";
+
 import ExploreHero from "../../components/features/explore/ExploreHero";
-import FeaturedLargeCard from "../../components/features/explore/FeaturedLargeCard";
-import FeaturedSmallCard from "../../components/features/explore/FeaturedSmallCard";
 import TrendingSetCard from "../../components/features/explore/TrendingSetCard";
+import { fetchPublicSets, clonePublicSet, fetchVocabSets } from "../../store/slices/vocabSlice";
+import type { RootState } from "../../store";
+import { getErrorMessage } from "../../lib/formErrors";
+import Loading from "../../components/common/Loading";
+
+const FALLBACK_SLIDES = [
+  {
+    id: "fb1",
+    name: "IELTS Academic Masterclass",
+    description: "Master the most frequently tested vocabulary for the IELTS Academic exam. Includes contextual examples, synonyms, and pronunciation guides.",
+    coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1000&auto=format&fit=crop",
+    category: "IELTS",
+    level: "Advanced",
+    colorTheme: "purple",
+    totalWords: 500,
+    learnerCount: 12400
+  },
+  {
+    id: "fb2",
+    name: "Travel Survival English",
+    description: "Essential phrases for airports, hotels, and exploring new cities confidently.",
+    coverUrl: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?q=80&w=1000&auto=format&fit=crop",
+    category: "Travel",
+    level: "Intermediate",
+    colorTheme: "blue",
+    totalWords: 150,
+    learnerCount: 8900
+  }
+];
+
+const getFallbackImage = (category: string, index: number) => {
+  const images: Record<string, string> = {
+    IELTS: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1000&auto=format&fit=crop",
+    Business: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1000&auto=format&fit=crop",
+    Travel: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?q=80&w=1000&auto=format&fit=crop",
+    Technology: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000&auto=format&fit=crop",
+    Academic: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=1000&auto=format&fit=crop",
+  };
+  return images[category] || [
+    "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=1000&auto=format&fit=crop",
+  ][index % 3];
+};
+
+const getBorderColor = (theme: string) => {
+  const colors: Record<string, string> = {
+    blue: "border-blue-500",
+    emerald: "border-emerald-500",
+    amber: "border-amber-500",
+    purple: "border-purple-600",
+    rose: "border-rose-500",
+    cyan: "border-cyan-500",
+  };
+  return colors[theme] || "border-purple-600";
+};
 
 export default function Explore() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { publicSets, publicSetsLoading, sets } = useSelector((state: RootState) => state.vocab);
+
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    dispatch(fetchPublicSets({ sortBy: "popular", limit: 12 }) as any);
+    dispatch(fetchVocabSets({}) as any);
+  }, [dispatch]);
+
+  const slidesToUse = publicSets.length > 0 ? publicSets.slice(0, 5) : FALLBACK_SLIDES;
+
+  useEffect(() => {
+    if (isHovered || slidesToUse.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slidesToUse.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [isHovered, slidesToUse.length]);
+
+  const handlePrevSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentSlide((prev) => (prev - 1 + slidesToUse.length) % slidesToUse.length);
+  };
+
+  const handleNextSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentSlide((prev) => (prev + 1) % slidesToUse.length);
+  };
+
+  const handleCloneSet = async (setId: string) => {
+    const toastId = toast.loading("Adding set to your library...");
+    try {
+      await dispatch(clonePublicSet(setId) as any).unwrap();
+      toast.success("Added to library successfully!", { id: toastId });
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to add set"), { id: toastId });
+    }
+  };
+
+  if (publicSetsLoading) {
+    return (
+      <div className="flex justify-center items-center py-24">
+        <Loading />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1280px] mx-auto space-y-12 pb-12">
       {/* Page Header & Main Discovery Search */}
       <ExploreHero />
 
-      {/* Featured Hero Bento Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
-        {/* Large Featured Card */}
-        <FeaturedLargeCard
-          title="IELTS Academic Masterclass"
-          description="Master the most frequently tested vocabulary for the IELTS Academic exam. Includes contextual examples, synonyms, and pronunciation guides."
-          bgImageUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuDLHXJh1G3MbDlzkb0blFFFYvCPbdcwoifp4FqmWi90dJ_YoIgprf-1c3I4t4WN-C09WJKcg4TX4Of29kmKM1IOmX-bQt9D1OVnWIQPLN2YZJV6s0nrwZM-H1Tx6TZNkDN8OJ2S66JP8ZfHDJdovXaMl7KCFl6ALNbumvrGiu6-5Wclng7vk729JuA1BKkGl-LyfTPz78J4z4rm_WhGTaEygmCL496hVDDba6Q6wLKib7N1kvAHkXM_TWvRAI_D5hn0_yTNxWOb5T0"
-          rating={4.9}
-          cardsCount={500}
-          learnersCount="12.4k"
-          onClick={() => navigate('/explore/p1')}
-        />
+      {/* Featured Slider */}
+      <section className="pt-4">
+        <div className="mb-4">
+          <h3 className="text-2xl font-bold text-slate-800">Featured Collections</h3>
+          <p className="text-sm text-slate-500 mt-1">Handpicked collections to help you learn faster.</p>
+        </div>
 
-        {/* Secondary Featured Cards */}
-        <div className="flex flex-col gap-6">
-          {/* Top Small Card */}
-          <FeaturedSmallCard
-            title="Travel Survival English"
-            description="Essential phrases for airports, hotels, and exploring new cities confidently."
-            wordsCount={150}
-            icon={<PlaneTakeoff className="w-4 h-4" />}
-            topBorderColorClass="border-purple-600"
-            onClick={() => navigate('/explore/p2')}
-          />
+        <div 
+          className="relative h-[350px] w-full rounded-2xl overflow-hidden shadow-md border border-slate-200 group bg-slate-900"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          {/* Slides Flex Wrapper */}
+          <div 
+            className="flex h-full w-full transition-transform duration-500 ease-in-out"
+            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          >
+            {slidesToUse.map((set, idx) => {
+              const bgImg = set.coverUrl || getFallbackImage(set.category, idx);
+              return (
+                <div 
+                  key={set.id}
+                  onClick={() => navigate(`/explore/${set.id}`)}
+                  className="w-full h-full flex-shrink-0 relative cursor-pointer"
+                >
+                  {/* Background Cover Image with Zoom Effect */}
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-102"
+                    style={{ backgroundImage: `url('${bgImg}')` }}
+                  />
 
-          {/* Bottom Small Card */}
-          <FeaturedSmallCard
-            title="Daily Idioms"
-            description="Speak like a native by mastering common conversational idioms."
-            wordsCount={0} // Not used when we provide bottomContent
-            badgeText="New"
-            topBorderColorClass="border-cyan-500"
-            bottomContent={
-              <div className="flex -space-x-2">
-                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAS6DblMiEP-W08eeN8d4G07g_isIwvuRtEoO7i5X4YflM0tzPzkZoARD9qy6xuxNsL93O7zyvhAh9C2CYZALnbynFEyfyyQnkribzxrhG3ByyObY15cQDxb6rr7JH7o3QA-hDB3R9Ml-R-8QsPSPFTOuZ7YIuRaX_fDNkPhP1jcluch15OWzqsBEEBVBElMqUMBK3q4ip0Ds9ENnWCHT79GyhcZj4YrogYkTjTcfbMKXHKytEG3SsO8u6GPhh9HFLkoTKRj9Y9Q3I" alt="User 1" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
-                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5H9Y4gvo0Rux_uoM13GV2SgetgBrgeclRCWvP4OajoOXE9r20It6wnoXR4KPIQu7jopJRB45yBV7Vxm5pVy4oHnF163mt8ObthgEJNj-qF0CKNwgJOOFNaSGDMEu72wq3HR3kwRpSil7hn2uVvhKewohujul04kLua7qJDsUgNmu0RYgtCQ3lftCclQGHaOiwS9-Ys9eIn7V0WMWT9Q9c5pI-5i5pKUxw8VwPCpaPHBoA28TtEKIsQ0g5GEPvbskcNA6-yCPcOzE" alt="User 2" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
-                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                  +2k
+                  {/* Sleek Dark Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/70 to-transparent" />
+
+                  {/* Slide Content */}
+                  <div className="absolute inset-0 flex flex-col justify-center px-12 md:px-20 text-white z-10 select-none">
+                    <div className="flex items-center gap-2.5 mb-4">
+                      <span className="bg-amber-500 text-white px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm">
+                        Popular
+                      </span>
+                      <span className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs flex items-center gap-1 font-semibold border border-white/10">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {set.category} • {set.level}
+                      </span>
+                    </div>
+
+                    <h3 className="text-3xl md:text-4xl font-extrabold text-white mb-3 max-w-xl leading-tight">
+                      {set.name}
+                    </h3>
+                    <p className="text-base text-slate-200 max-w-xl mb-6 line-clamp-2 leading-relaxed">
+                      {set.description || "No description provided."}
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-6 text-sm font-semibold text-slate-300">
+                      <span className="flex items-center gap-2">
+                        <Copy className="w-4 h-4 text-purple-400" /> {set.totalWords} Cards
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-emerald-400" /> {set.learnerCount.toLocaleString()} Learners
+                      </span>
+                      {sets.some(s => s.clonedFrom === set.id) ? (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/vocabulary');
+                          }}
+                          className="mt-2 md:mt-0 flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-all hover:scale-105 shadow-md shadow-emerald-900/30 cursor-pointer"
+                        >
+                          <Check className="w-4 h-4" /> In Library
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCloneSet(set.id);
+                          }}
+                          className="mt-2 md:mt-0 flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl transition-all hover:scale-105 shadow-md shadow-purple-900/30 cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" /> Add to Library
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            }
-          />
+              );
+            })}
+          </div>
+
+          {/* Navigation Arrows */}
+          {slidesToUse.length > 1 && (
+            <>
+              <button 
+                onClick={handlePrevSlide}
+                className="absolute left-6 top-1/2 -translate-y-1/2 bg-slate-900/40 hover:bg-slate-900/70 text-white p-2.5 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm z-20 border border-white/10"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={handleNextSlide}
+                className="absolute right-6 top-1/2 -translate-y-1/2 bg-slate-900/40 hover:bg-slate-900/70 text-white p-2.5 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm z-20 border border-white/10"
+              >
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </>
+          )}
+
+          {/* Dots Indicator */}
+          {slidesToUse.length > 1 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+              {slidesToUse.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`w-2.5 h-2.5 rounded-full cursor-pointer transition-all duration-300 ${
+                    idx === currentSlide ? "bg-purple-500 w-7 shadow-sm" : "bg-white/50 hover:bg-white"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -74,37 +257,26 @@ export default function Explore() {
         </div>
         
         <div className="flex overflow-x-auto hide-scrollbar gap-6 pb-6 snap-x">
-          <TrendingSetCard
-            title="TOEIC 900+ Core"
-            description="Business English essentials required to hit the top tier TOEIC score."
-            tags={["Business", "Advanced"]}
-            termsCount={850}
-            topBorderColorClass="border-blue-500"
-          />
-          
-          <TrendingSetCard
-            title="Tech Startup Jargon"
-            description="Navigate the modern tech workplace. From 'agile' to 'synergy'."
-            tags={["Technology", "Intermediate"]}
-            termsCount={120}
-            topBorderColorClass="border-emerald-500"
-          />
-          
-          <TrendingSetCard
-            title="Emotional Intelligence"
-            description="Vocabulary for expressing complex feelings and navigating interpersonal dynamics."
-            tags={["Psychology", "Advanced"]}
-            termsCount={200}
-            topBorderColorClass="border-rose-500"
-          />
-          
-          <TrendingSetCard
-            title="Academic Phrasal Verbs"
-            description="Elevate your academic writing with these crucial phrasal verbs."
-            tags={["Academic", "Writing"]}
-            termsCount={350}
-            topBorderColorClass="border-purple-600"
-          />
+          {publicSets.length > 0 ? (
+            publicSets.map((set) => {
+              const isAdded = sets.some(s => s.clonedFrom === set.id);
+              return (
+                <TrendingSetCard
+                  key={set.id}
+                  title={set.name}
+                  description={set.description || ""}
+                  tags={set.tags || []}
+                  termsCount={set.totalWords}
+                  topBorderColorClass={getBorderColor(set.colorTheme)}
+                  isAdded={isAdded}
+                  onClick={() => navigate(`/explore/${set.id}`)}
+                  onAdd={() => handleCloneSet(set.id)}
+                />
+              );
+            })
+          ) : (
+            <p className="text-sm text-slate-500">No trending sets available.</p>
+          )}
         </div>
       </section>
     </div>

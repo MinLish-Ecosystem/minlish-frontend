@@ -10,15 +10,14 @@ import {
   LogOut,
   Sparkles,
   Search,
-  Bell,
   Moon,
-  HelpCircle,
   Zap
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { cn } from "../../lib/utils";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store";
+import NotificationDropdown from "./NotificationDropdown";
 
 const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
   <NavLink
@@ -47,7 +46,7 @@ export default function MainLayout() {
 
   const handleStartSession = () => {
     if (sets.length > 0) {
-      navigate(`/learn/${sets[0].id}`);
+      navigate("/learn/session");
     } else {
       navigate("/vocabulary");
     }
@@ -93,7 +92,7 @@ export default function MainLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="h-[72px] bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 z-10">
+        <header className="h-[72px] bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 relative z-30">
           <div className="flex items-center w-full max-w-md bg-slate-100 rounded-full px-4 py-2 border border-transparent focus-within:border-purple-300 focus-within:bg-white transition-all">
             <Search className="w-4 h-4 text-slate-400 mr-2" />
             <input 
@@ -111,14 +110,9 @@ export default function MainLayout() {
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 pr-4 border-r border-slate-200">
-              <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-                <Bell className="w-5 h-5" />
-              </button>
+              <NotificationDropdown />
               <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
                 <Moon className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-                <HelpCircle className="w-5 h-5" />
               </button>
             </div>
             
@@ -130,7 +124,10 @@ export default function MainLayout() {
               Start Session
             </button>
             
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-100 cursor-pointer hover:scale-105 transition-transform">
+            <div 
+              onClick={() => navigate("/settings")}
+              className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-100 cursor-pointer hover:scale-105 transition-transform"
+            >
               <img 
                 src={user?.avatar || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100"} 
                 alt="Profile" 
@@ -139,6 +136,7 @@ export default function MainLayout() {
             </div>
           </div>
         </header>
+
 
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-8 overflow-x-hidden">

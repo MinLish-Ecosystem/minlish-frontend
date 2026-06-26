@@ -1,5 +1,5 @@
-import React, { useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useCallback, useState, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Search, SlidersHorizontal } from "lucide-react";
 import VocabSetCard from "../../components/features/vocabulary/VocabSetCard";
@@ -18,26 +18,28 @@ const SORTS: { value: SortBy; label: string }[] = [
 
 export default function ExploreAll() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const dispatch = useDispatch();
   const { publicSets, publicSetsLoading, publicSetsPagination } = useSelector((state: RootState) => state.vocab);
 
-  const [q,        setQ]        = React.useState("");
-  const [category, setCategory] = React.useState<VocabCategory | "">("");
-  const [level,    setLevel]    = React.useState<VocabLevel | "">("");
-  const [sortBy,   setSortBy]   = React.useState<SortBy>("popular");
-  const [currentPage, setCurrentPage] = React.useState(1);
+  const initialQ = searchParams.get("q") || "";
 
-  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const handleSearchChange = useCallback((value: string) => {
-    setQ(value);
-    setCurrentPage(1);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
-      // Trigger fetch after debounce
-    }, 300);
-  }, []);
+  const [searchText, setSearchText] = useState(initialQ);
+  const [q,        setQ]        = useState(initialQ);
+  const [category, setCategory] = useState<VocabCategory | "">("");
+  const [level,    setLevel]    = useState<VocabLevel | "">("");
+  const [sortBy,   setSortBy]   = useState<SortBy>("popular");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Debounce search text updates to update "q" and reset page
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQ(searchText);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   useEffect(() => {
     dispatch(
@@ -57,56 +59,87 @@ export default function ExploreAll() {
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-slate-800 mb-2">Explore All Sets</h2>
         <p className="text-slate-500">Find the perfect vocabulary set for your learning goals.</p>
+        <p className="text-xs text-slate-400 mt-2 flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 rounded-lg p-2.5 max-w-fit">
+          <span className="text-purple-500 font-bold">💡 Smart Search:</span>
+          <span>Finds sets using partial matching (case-insensitive) on name, description, and tags.</span>
+        </p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-8 flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
+      {/* Search Input and Filter Button Row */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-8 flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
             type="text"
-            value={q}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search sets..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search sets by name, description, tags..."
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 transition-all text-sm outline-none"
           />
         </div>
 
-        <select
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value as VocabCategory | "");
-            setCurrentPage(1);
-          }}
-          className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none"
-        >
-          <option value="">All Categories</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        {/* Inline Filters */}
+        {showFilters && (
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-stretch sm:items-center">
+            <select
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value as VocabCategory | "");
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none bg-white cursor-pointer min-w-[140px]"
+            >
+              <option value="">All Categories</option>
+              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
 
-        <select
-          value={level}
-          onChange={(e) => {
-            setLevel(e.target.value as VocabLevel | "");
-            setCurrentPage(1);
-          }}
-          className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none"
-        >
-          <option value="">All Levels</option>
-          {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-        </select>
+            <select
+              value={level}
+              onChange={(e) => {
+                setLevel(e.target.value as VocabLevel | "");
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none bg-white cursor-pointer min-w-[120px]"
+            >
+              <option value="">All Levels</option>
+              {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
 
-        <select
-          value={sortBy}
-          onChange={(e) => {
-            setSortBy(e.target.value as SortBy);
-            setCurrentPage(1);
-          }}
-          className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none"
-        >
-          {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value as SortBy);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none bg-white cursor-pointer min-w-[130px]"
+            >
+              {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
 
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-purple-500 text-purple-600 font-semibold text-sm hover:bg-purple-50 transition-colors">
+            {(category || level || sortBy !== "popular") && (
+              <button
+                onClick={() => {
+                  setCategory("");
+                  setLevel("");
+                  setSortBy("popular");
+                  setCurrentPage(1);
+                }}
+                className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors cursor-pointer whitespace-nowrap px-1 py-1"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        )}
+
+        <button 
+          onClick={() => setShowFilters(!showFilters)}
+          className={`flex items-center gap-2 px-5 py-2 rounded-lg border-2 border-purple-500 font-semibold text-sm transition-all cursor-pointer w-full md:w-auto justify-center ${
+            showFilters 
+              ? "bg-purple-600 border-purple-600 text-white shadow-md" 
+              : "text-purple-600 hover:bg-purple-50"
+          }`}
+        >
           <SlidersHorizontal className="w-4 h-4" />
           Filter
         </button>
@@ -129,13 +162,14 @@ export default function ExploreAll() {
           <EmptyState title="No sets found" description="Try adjusting your search filters." />
           <button
             onClick={() => {
+              setSearchText("");
               setQ("");
               setCategory("");
               setLevel("");
               setSortBy("popular");
               setCurrentPage(1);
             }}
-            className="mt-4 text-purple-600 font-semibold hover:underline text-sm"
+            className="mt-4 text-purple-600 font-semibold hover:underline text-sm cursor-pointer"
           >
             Clear all filters
           </button>

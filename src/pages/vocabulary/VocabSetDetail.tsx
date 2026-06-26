@@ -354,6 +354,33 @@ export default function VocabSetDetail() {
       toast.error("Word is required");
       return;
     }
+
+    const normalizedWord = modalWordData.word.trim().toLowerCase();
+    const existing = currentSetWords.find(
+      (w) => w.id !== editingWordId && w.word.trim().toLowerCase() === normalizedWord
+    );
+
+    if (existing) {
+      setEditingWordId(existing.id);
+      setModalMode("edit");
+      setModalWordData({
+        word: existing.word,
+        meaning: existing.meaning,
+        pronunciation: existing.pronunciation || "",
+        partOfSpeech: existing.partOfSpeech || "noun",
+        example: existing.examples?.[0] || "",
+        note: existing.note || "",
+        imageUrl: existing.imageUrl || "",
+        imageSource: existing.imageUrl ? "url" : "upload",
+        audioUrl: existing.audioUrl || "",
+        synonyms: existing.synonyms?.join(", ") || "",
+        antonyms: existing.antonyms?.join(", ") || "",
+        descriptionEN: existing.descriptionEN || "",
+      });
+      toast.success(`Switched to editing existing word: "${existing.word}"`);
+      return;
+    }
+
     if (!modalWordData.meaning.trim()) {
       toast.error("Meaning is required");
       return;
@@ -438,6 +465,56 @@ export default function VocabSetDetail() {
     parseAndSetPreview(e.target.value, "text");
   };
 
+  const parseCsvLine = (line: string): string[] => {
+    const fields: string[] = [];
+    let currentField = "";
+    let inQuotes = false;
+    for (let j = 0; j < line.length; j++) {
+      const c = line[j];
+      if (c === '"') {
+        if (inQuotes && j + 1 < line.length && line[j + 1] === '"') {
+          currentField += '"';
+          j++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === ',' && !inQuotes) {
+        fields.push(currentField.trim());
+        currentField = "";
+      } else {
+        currentField += c;
+      }
+    }
+    fields.push(currentField.trim());
+    return fields;
+  };
+
+  const harvestEnglishWords = (text: string): string[] => {
+    const tokens = text.split(/[\n,;\t\r]/).map(t => t.trim()).filter(Boolean);
+    const result: string[] = [];
+    const seen = new Set<string>();
+    const englishWordRegex = /^[a-zA-Z\s'-]+$/;
+
+    for (const token of tokens) {
+      const subTokens = token.split(/\s*[:\-]\s*/).map(t => t.trim()).filter(Boolean);
+      for (const sub of subTokens) {
+        const cleaned = sub.replace(/^["'([{*\-\s]+|["')\]}*.\s]+$/g, '').trim();
+        if (cleaned.length >= 2 && englishWordRegex.test(cleaned)) {
+          const lower = cleaned.toLowerCase();
+          if (lower === "word" || lower === "meaning" || lower === "pronunciation" || lower === "part of speech" || lower === "description en" || lower === "note" || lower === "examples") {
+            continue;
+          }
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            const formatted = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+            result.push(formatted);
+          }
+        }
+      }
+    }
+    return result;
+  };
+
   const parseAndSetPreview = (rawContent: string, format: "csv" | "text") => {
     if (!rawContent.trim()) {
       setPreviewItems([]);
@@ -445,98 +522,55 @@ export default function VocabSetDetail() {
     }
 
     const items: any[] = [];
-    const lines = rawContent.split("\n").map(l => l.trim()).filter(Boolean);
 
     if (format === "csv") {
-      let startIdx = 0;
-      if (lines.length > 0) {
-        const firstLine = lines[0].toLowerCase();
-        if (firstLine.includes("word") || firstLine.includes("term") || firstLine.includes("meaning")) {
-          startIdx = 1;
-        }
-      }
-      for (let i = startIdx; i < lines.length; i++) {
-        const line = lines[i];
-        const fields: string[] = [];
-        let currentField = "";
-        let inQuotes = false;
-        for (let j = 0; j < line.length; j++) {
-          const c = line[j];
-          if (c === '"') {
-            if (inQuotes && j + 1 < line.length && line[j + 1] === '"') {
-              currentField += '"';
-              j++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (c === ',' && !inQuotes) {
-            fields.push(currentField.trim());
-            currentField = "";
-          } else {
-            currentField += c;
+      const lines = rawContent.split("\n").map(l => l.trim()).filter(Boolean);
+      const firstLine = lines.length > 0 ? lines[0].toLowerCase() : "";
+      const isSystemCsv = firstLine.includes("word") && (firstLine.includes("meaning") || firstLine.includes("pronunciation") || firstLine.includes("part of speech"));
+
+      if (isSystemCsv) {
+        const headerRow = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/"/g, ""));
+        const wordIdx = headerRow.indexOf("word");
+        const pronunciationIdx = headerRow.indexOf("pronunciation");
+        const posIdx = headerRow.findIndex(h => h.includes("part") || h.includes("speech") || h.includes("pos"));
+        const meaningIdx = headerRow.indexOf("meaning");
+        const descIdx = headerRow.findIndex(h => h.includes("description") || h.includes("desc"));
+        const noteIdx = headerRow.indexOf("note");
+        const examplesIdx = headerRow.findIndex(h => h.includes("example"));
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          const fields = parseCsvLine(line);
+          const word = wordIdx !== -1 ? fields[wordIdx] || "" : "";
+          if (word.trim()) {
+            const pronunciation = pronunciationIdx !== -1 ? fields[pronunciationIdx] || "" : "";
+            const partOfSpeech = posIdx !== -1 ? fields[posIdx] || "noun" : "noun";
+            const meaning = meaningIdx !== -1 ? fields[meaningIdx] || "" : "";
+            const descriptionEN = descIdx !== -1 ? fields[descIdx] || "" : "";
+            const note = noteIdx !== -1 ? fields[noteIdx] || "" : "";
+            const exampleRaw = examplesIdx !== -1 ? fields[examplesIdx] || "" : "";
+
+            items.push({
+              id: "import_" + i + "_" + Date.now(),
+              word: word.trim(),
+              meaning: meaning.trim(),
+              pronunciation: pronunciation.trim(),
+              partOfSpeech: partOfSpeech.trim().toLowerCase(),
+              example: exampleRaw.trim(),
+              note: note.trim(),
+              synonyms: [],
+              antonyms: [],
+              descriptionEN: descriptionEN.trim(),
+              isValid: word.trim().length > 0 && meaning.trim().length > 0
+            });
           }
         }
-        fields.push(currentField.trim());
-
-        const word = fields[0] || "";
-        const meaning = fields[1] || "";
-        const pronunciation = fields[2] || "";
-        const pos = fields[3] || "noun";
-        const example = fields[4] || "";
-        const note = fields[5] || "";
-
-        if (word) {
+      } else {
+        const harvested = harvestEnglishWords(rawContent);
+        harvested.forEach((word, idx) => {
           items.push({
-            id: "import_" + i + "_" + Date.now(),
+            id: "harvest_" + idx + "_" + Date.now(),
             word,
-            meaning,
-            pronunciation,
-            partOfSpeech: pos.toLowerCase(),
-            example,
-            note,
-            synonyms: [],
-            antonyms: [],
-            descriptionEN: "",
-            isValid: word.trim().length > 0 && meaning.trim().length > 0
-          });
-        }
-      }
-    } else {
-      // Text parsing
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const delimiters = [" - ", " : ", " | ", "\t", ":", "-"];
-        let splitFields: string[] = [];
-
-        for (const delim of delimiters) {
-          if (line.includes(delim)) {
-            const idx = line.indexOf(delim);
-            splitFields = [
-              line.substring(0, idx).trim(),
-              line.substring(idx + delim.length).trim()
-            ];
-            break;
-          }
-        }
-
-        if (splitFields.length === 2 && splitFields[0]) {
-          items.push({
-            id: "import_" + i + "_" + Date.now(),
-            word: splitFields[0],
-            meaning: splitFields[1],
-            pronunciation: "",
-            partOfSpeech: "noun",
-            example: "",
-            note: "",
-            synonyms: [],
-            antonyms: [],
-            descriptionEN: "",
-            isValid: splitFields[0].trim().length > 0 && splitFields[1].trim().length > 0
-          });
-        } else if (line.trim()) {
-          items.push({
-            id: "import_" + i + "_" + Date.now(),
-            word: line.trim(),
             meaning: "",
             pronunciation: "",
             partOfSpeech: "noun",
@@ -545,10 +579,27 @@ export default function VocabSetDetail() {
             synonyms: [],
             antonyms: [],
             descriptionEN: "",
-            isValid: false // Needs meaning lookup/input
+            isValid: false
           });
-        }
+        });
       }
+    } else {
+      const harvested = harvestEnglishWords(rawContent);
+      harvested.forEach((word, idx) => {
+        items.push({
+          id: "harvest_" + idx + "_" + Date.now(),
+          word,
+          meaning: "",
+          pronunciation: "",
+          partOfSpeech: "noun",
+          example: "",
+          note: "",
+          synonyms: [],
+          antonyms: [],
+          descriptionEN: "",
+          isValid: false
+        });
+      });
     }
 
     setPreviewItems(items);
@@ -600,6 +651,83 @@ export default function VocabSetDetail() {
     toast.success(`Batch dictionary lookup: ${successCount} words filled, ${failedCount} failed.`);
   };
 
+  // Helper to check if a word is duplicate in currentSetWords or within preview
+  const isDuplicateWord = (word: string, currentId: string) => {
+    const normalized = word.trim().toLowerCase();
+    if (!normalized) return false;
+    
+    const existsInSet = currentSetWords.some(w => w.word.trim().toLowerCase() === normalized);
+    if (existsInSet) return true;
+    
+    const firstIndex = previewItems.findIndex(p => p.word.trim().toLowerCase() === normalized);
+    const currentIndex = previewItems.findIndex(p => p.id === currentId);
+    if (firstIndex !== -1 && firstIndex !== currentIndex) return true;
+    
+    return false;
+  };
+
+  // Tra cứu nghĩa riêng lẻ cho từng dòng trong bảng Batch Import
+  const handleSingleBatchLookup = async (index: number) => {
+    const item = previewItems[index];
+    if (!item.word.trim()) {
+      toast.error("Please enter a word first");
+      return;
+    }
+    
+    try {
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(item.word.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        const details = parseDictionaryEntry(data);
+        if (details) {
+          const updated = [...previewItems];
+          updated[index] = {
+            ...item,
+            meaning: details.meaning,
+            partOfSpeech: details.partOfSpeech,
+            pronunciation: details.pronunciation,
+            example: details.example,
+            audioUrl: details.audioUrl,
+            synonyms: details.synonyms,
+            antonyms: details.antonyms,
+            descriptionEN: details.descriptionEN,
+            isValid: item.word.trim().length > 0 && details.meaning.trim().length > 0
+          };
+          setPreviewItems(updated);
+          toast.success(`Looked up "${item.word}" successfully!`);
+        } else {
+          toast.error("Could not parse details for this word");
+        }
+      } else {
+        toast.error(`Word "${item.word}" not found in dictionary`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Dictionary lookup failed");
+    }
+  };
+
+  // Dọn dẹp các dòng trùng hoặc thiếu nghĩa trong bảng preview
+  const handleCleanUpPreview = () => {
+    const seen = new Set<string>();
+    const existingWords = currentSetWords.map(w => w.word.trim().toLowerCase());
+    
+    const cleaned = previewItems.filter(item => {
+      const wordNormalized = item.word.trim().toLowerCase();
+      if (!wordNormalized) return false;
+      if (!item.meaning.trim()) return false;
+      
+      if (existingWords.includes(wordNormalized)) return false;
+      if (seen.has(wordNormalized)) return false;
+      
+      seen.add(wordNormalized);
+      return true;
+    });
+    
+    setPreviewItems(cleaned);
+    toast.success(`Cleaned up preview: kept ${cleaned.length} unique, valid terms.`);
+  };
+
   // Confirm import items from batch tab into set
   const handleImportParsedItems = async () => {
     const validItems = previewItems.filter(item => item.word.trim() && item.meaning.trim());
@@ -608,9 +736,17 @@ export default function VocabSetDetail() {
       return;
     }
 
+    const uniqueValidItems = validItems.filter(item => !isDuplicateWord(item.word, item.id));
+    const skippedCount = validItems.length - uniqueValidItems.length;
+
+    if (uniqueValidItems.length === 0) {
+      toast.error("No new terms to import. All parsed terms are duplicates.");
+      return;
+    }
+
     setAddingWord(true);
     try {
-      const addPromises = validItems.map(item => api.post(`/api/v1/vocab/sets/${setId}/words`, {
+      const addPromises = uniqueValidItems.map(item => api.post(`/api/v1/vocab/sets/${setId}/words`, {
         word: item.word.trim(),
         meaning: item.meaning.trim(),
         pronunciation: item.pronunciation || undefined,
@@ -626,7 +762,11 @@ export default function VocabSetDetail() {
 
       await Promise.all(addPromises);
       await dispatch(fetchSetDetail(setId!));
-      toast.success(`Imported ${validItems.length} terms successfully!`);
+      if (skippedCount > 0) {
+        toast.success(`Imported ${uniqueValidItems.length} terms, skipped ${skippedCount} duplicate(s).`);
+      } else {
+        toast.success(`Imported ${uniqueValidItems.length} terms successfully!`);
+      }
       setShowModal(false);
     } catch {
       toast.error("Failed to import some terms. Try again.");
@@ -663,7 +803,11 @@ export default function VocabSetDetail() {
       </div>
     );
   }
-  
+  const modalWordNormalized = modalWordData.word.trim().toLowerCase();
+  const existingWordInSet = modalWordNormalized
+    ? currentSetWords.find(w => w.id !== editingWordId && w.word.trim().toLowerCase() === modalWordNormalized)
+    : null;
+
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Breadcrumbs */}
@@ -952,6 +1096,12 @@ export default function VocabSetDetail() {
                         {modalLoading ? "Searching..." : "Auto Fill"}
                       </button>
                     </div>
+                    {existingWordInSet && (
+                      <p className="text-red-500 text-xs font-semibold flex items-center gap-1 mt-1">
+                        <span className="material-symbols-outlined text-[14px]">warning</span>
+                        This word already exists in this set. Click the button below to edit it.
+                      </p>
+                    )}
                   </div>
 
                   {/* Pronunciation & Part of Speech */}
@@ -1135,29 +1285,22 @@ export default function VocabSetDetail() {
               ) : (
                 /* BATCH IMPORT TAB */
                 <div className="flex flex-col gap-4">
-                  <div className="p-4 bg-[#8127cf]/5 border border-[#8127cf]/15 rounded-2xl flex flex-col gap-2">
-                    <span className="font-semibold text-xs text-[#8127cf] flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[16px]">info</span>
-                      Batch Import Tips
-                    </span>
-                    <p className="text-[11px] text-slate-600 leading-normal">
-                      * CSV schema: <code className="bg-white/80 px-1 py-0.5 rounded border">Word,Meaning,Pronunciation,PartOfSpeech,Example,Note</code>
-                      <br />
-                      * Raw text: write words and meanings separated by a dash <code className="bg-white/80 px-1 py-0.5 rounded border">-</code> or colon <code className="bg-white/80 px-1 py-0.5 rounded border">:</code>.
-                      <br />
-                      * Alternatively, paste a raw list of words (one per line) and click <code className="font-bold text-[#1000a3]">Auto-Lookup</code> below to pull meanings automatically.
+                  <div className="p-4 bg-[#8127cf]/5 border border-[#8127cf]/10 rounded-2xl flex items-start gap-2.5">
+                    <span className="material-symbols-outlined text-[#8127cf] text-sm mt-0.5">info</span>
+                    <p className="text-xs text-slate-600 leading-relaxed font-semibold">
+                      Upload a CSV file (exported from MinLish) or paste a raw list of English words separated by commas, semicolons, dashes, or newlines. We will automatically extract the words so you can auto-lookup their definitions.
                     </p>
                   </div>
 
                   {/* Drag and Drop CSV Zone */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Option A: Upload CSV File</label>
+                    <label className="text-xs font-semibold text-slate-700">Upload CSV File</label>
                     <div className="w-full p-6 border-2 border-dashed border-slate-300 rounded-2xl bg-white hover:bg-slate-50/50 hover:border-slate-400 transition-colors flex flex-col items-center justify-center text-center relative cursor-pointer">
                       <span className="material-symbols-outlined text-slate-400 text-3xl mb-1">csv</span>
                       <span className="font-bold text-xs text-slate-700">
                         {csvFile ? csvFile.name : "Select or Drop CSV file here"}
                       </span>
-                      <span className="text-[10px] text-slate-400 mt-1">UTF-8 Encoded CSV up to 100 lines</span>
+                      <span className="text-[10px] text-slate-400 mt-1">UTF-8 Encoded CSV format</span>
                       <input
                         type="file"
                         accept=".csv"
@@ -1167,14 +1310,14 @@ export default function VocabSetDetail() {
                     </div>
                   </div>
 
-                  <div className="text-center text-xs font-semibold text-slate-400 my-1">— OR —</div>
+                  <div className="text-center text-xs font-semibold text-slate-400 my-0.5">— OR —</div>
 
                   {/* Raw Text copy-paste area */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Option B: Copy-Paste Raw Text</label>
+                    <label className="text-xs font-semibold text-slate-700">Paste Raw English Text</label>
                     <textarea
-                      placeholder="e.g.&#10;serendipity - happy coincidence&#10;synergy - combined strength&#10;integrity"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs font-mono"
+                      placeholder="Enter English words here (e.g. serendipity, integrity, synergy or paste a paragraph/list)..."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs font-sans leading-relaxed"
                       rows={6}
                       value={batchRawText}
                       onChange={handleRawTextChange}
@@ -1183,80 +1326,135 @@ export default function VocabSetDetail() {
 
                   {/* Batch preview items and Auto-Lookup triggers */}
                   {previewItems.length > 0 && (
-                    <div className="flex flex-col gap-2 mt-2 bg-white p-4 rounded-2xl border border-slate-200">
-                      <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                        <span className="font-bold text-xs text-slate-700">
-                          Parsed Preview ({previewItems.length} items found)
+                    <div className="flex flex-col gap-3 mt-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-slate-100 gap-2">
+                        <span className="font-bold text-xs text-slate-700 tracking-wide">
+                          Parsed Preview ({previewItems.length} terms)
                         </span>
-                        <button
-                          onClick={handleBatchAutoLookup}
-                          disabled={batchLookupLoading}
-                          className="flex items-center gap-1.5 bg-blue-50 text-[#1000a3] hover:bg-blue-100/50 rounded-lg text-xs font-bold transition-all disabled:opacity-50 shadow-3xs"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
-                          {batchLookupLoading ? "Lookup in progress..." : "Auto-Lookup Definitions"}
-                        </button>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                          <button
+                            onClick={handleBatchAutoLookup}
+                            disabled={batchLookupLoading}
+                            className="flex items-center justify-center gap-1.5 bg-blue-50 text-[#1000a3] hover:bg-blue-100/50 rounded-xl px-3 py-2 text-xs font-bold transition-all disabled:opacity-50 shadow-3xs"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                            {batchLookupLoading ? "Lookup..." : "Auto-Lookup"}
+                          </button>
+                          <button
+                            onClick={handleCleanUpPreview}
+                            className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl px-3 py-2 text-xs font-bold transition-all shadow-3xs"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">cleaning_services</span>
+                            Clean Up
+                          </button>
+                        </div>
                       </div>
 
                       {/* Interactive Preview Table */}
-                      <div className="max-h-60 overflow-y-auto mt-2 border border-slate-100 rounded-lg">
+                      <div className="max-h-60 overflow-y-auto mt-1 border border-slate-100 rounded-xl">
                         <table className="min-w-full text-left text-xs text-slate-700 bg-white">
-                          <thead className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
+                          <thead className="bg-slate-50/50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-100 sticky top-0 backdrop-blur-xs">
                             <tr>
-                              <th className="px-3 py-2 w-1/3">Word</th>
-                              <th className="px-3 py-2">Meaning</th>
-                              <th className="px-3 py-2 w-10 text-center">Action</th>
+                              <th className="px-4 py-2.5 w-1/3">Word</th>
+                              <th className="px-4 py-2.5 w-1/3">Meaning</th>
+                              <th className="px-4 py-2.5 text-center">Status</th>
+                              <th className="px-4 py-2.5 text-center">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {previewItems.map((item, index) => (
-                              <tr key={item.id} className={item.isValid ? "" : "bg-red-50/30"}>
-                                <td className="px-3 py-1.5">
-                                  <input
-                                    type="text"
-                                    value={item.word}
-                                    onChange={(e) => {
-                                      const updated = [...previewItems];
-                                      updated[index] = {
-                                        ...item,
-                                        word: e.target.value,
-                                        isValid: e.target.value.trim().length > 0 && item.meaning.trim().length > 0
-                                      };
-                                      setPreviewItems(updated);
-                                    }}
-                                    className="bg-transparent border-none p-1 focus:ring-1 focus:ring-primary focus:bg-white rounded w-full font-semibold"
-                                  />
-                                </td>
-                                <td className="px-3 py-1.5">
-                                  <input
-                                    type="text"
-                                    placeholder="Missing meaning! Type or click Auto-Lookup"
-                                    value={item.meaning}
-                                    onChange={(e) => {
-                                      const updated = [...previewItems];
-                                      updated[index] = {
-                                        ...item,
-                                        meaning: e.target.value,
-                                        isValid: item.word.trim().length > 0 && e.target.value.trim().length > 0
-                                      };
-                                      setPreviewItems(updated);
-                                    }}
-                                    className={`bg-transparent border-none p-1 focus:ring-1 focus:ring-primary focus:bg-white rounded w-full ${
-                                      item.meaning ? "" : "text-red-500 placeholder-red-300 font-medium"
-                                    }`}
-                                  />
-                                </td>
-                                <td className="px-3 py-1.5 text-center">
-                                  <button
-                                    onClick={() => setPreviewItems(previewItems.filter(p => p.id !== item.id))}
-                                    className="text-slate-400 hover:text-red-500 transition-colors p-1"
-                                    title="Exclude"
-                                  >
-                                    <span className="material-symbols-outlined text-[16px]">close</span>
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                            {previewItems.map((item, index) => {
+                              const isDup = isDuplicateWord(item.word, item.id);
+                              const isMissingMeaning = !item.meaning || !item.meaning.trim();
+                              
+                              let statusBadge = null;
+                              if (isDup) {
+                                statusBadge = (
+                                  <span className="inline-flex items-center gap-0.5 bg-rose-50 border border-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                                    <span className="material-symbols-outlined text-[10px]">warning</span>
+                                    Duplicate
+                                  </span>
+                                );
+                              } else if (isMissingMeaning) {
+                                statusBadge = (
+                                  <span className="inline-flex items-center gap-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                                    <span className="material-symbols-outlined text-[10px]">help_center</span>
+                                    No Meaning
+                                  </span>
+                                );
+                              } else {
+                                statusBadge = (
+                                  <span className="inline-flex items-center gap-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                                    <span className="material-symbols-outlined text-[10px]">check_circle</span>
+                                    Ready
+                                  </span>
+                                );
+                              }
+
+                              return (
+                                <tr key={item.id} className={`${isDup ? "bg-rose-50/20" : isMissingMeaning ? "bg-amber-50/10" : ""} hover:bg-slate-50/30 transition-colors`}>
+                                  <td className="px-4 py-2">
+                                    <input
+                                      type="text"
+                                      value={item.word}
+                                      disabled={isDup}
+                                      onChange={(e) => {
+                                        const updated = [...previewItems];
+                                        updated[index] = {
+                                          ...item,
+                                          word: e.target.value,
+                                          isValid: e.target.value.trim().length > 0 && item.meaning.trim().length > 0
+                                        };
+                                        setPreviewItems(updated);
+                                      }}
+                                      className={`bg-transparent border-none p-1 focus:ring-1 focus:ring-[#1000a3]/20 focus:bg-white rounded w-full font-semibold ${isDup ? "text-slate-400 cursor-not-allowed" : ""}`}
+                                    />
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <input
+                                      type="text"
+                                      placeholder={isDup ? "Duplicate term, will be skipped" : "Type meaning or click Auto-Lookup"}
+                                      value={item.meaning}
+                                      disabled={isDup}
+                                      onChange={(e) => {
+                                        const updated = [...previewItems];
+                                        updated[index] = {
+                                          ...item,
+                                          meaning: e.target.value,
+                                          isValid: item.word.trim().length > 0 && e.target.value.trim().length > 0
+                                        };
+                                        setPreviewItems(updated);
+                                      }}
+                                      className={`bg-transparent border-none p-1 focus:ring-1 focus:ring-[#1000a3]/20 focus:bg-white rounded w-full ${
+                                        item.meaning ? "" : "text-amber-600 placeholder-amber-300 font-medium"
+                                      } ${isDup ? "text-slate-400 cursor-not-allowed" : ""}`}
+                                    />
+                                  </td>
+                                  <td className="px-4 py-2 text-center select-none">
+                                    {statusBadge}
+                                  </td>
+                                  <td className="px-4 py-2 text-center">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      {isMissingMeaning && !isDup && (
+                                        <button
+                                          onClick={() => handleSingleBatchLookup(index)}
+                                          className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1 rounded-lg transition-colors flex items-center justify-center"
+                                          title="Tra cứu từ điển"
+                                        >
+                                          <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => setPreviewItems(previewItems.filter(p => p.id !== item.id))}
+                                        className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1 rounded-lg transition-colors flex items-center justify-center"
+                                        title="Exclude"
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">close</span>
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1279,9 +1477,19 @@ export default function VocabSetDetail() {
                 <button
                   onClick={handleSaveWordFromModal}
                   disabled={addingWord || updatingWord}
-                  className="px-6 py-2 bg-[#1000a3] text-white rounded-full text-xs font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+                  className={`px-6 py-2 rounded-full text-xs font-semibold hover:shadow-lg transition-all disabled:opacity-50 ${
+                    existingWordInSet
+                      ? "bg-amber-600 hover:bg-amber-700 text-white"
+                      : "bg-[#1000a3] text-white"
+                  }`}
                 >
-                  {addingWord || updatingWord ? "Saving..." : modalMode === "add" ? "Add Word" : "Save Changes"}
+                  {addingWord || updatingWord
+                    ? "Saving..."
+                    : existingWordInSet
+                    ? "Word already exists. Edit it?"
+                    : modalMode === "add"
+                    ? "Add Word"
+                    : "Save Changes"}
                 </button>
               ) : (
                 <button

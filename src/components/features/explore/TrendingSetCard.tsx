@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, BookCopy } from "lucide-react";
+import { Plus, BookCopy, Check } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
 export interface TrendingSetCardProps {
@@ -8,6 +8,7 @@ export interface TrendingSetCardProps {
   tags: string[];
   termsCount: number;
   topBorderColorClass: string;
+  isAdded?: boolean;
   onClick?: () => void;
   onAdd?: (e: React.MouseEvent) => void;
 }
@@ -18,6 +19,7 @@ export default function TrendingSetCard({
   tags,
   termsCount,
   topBorderColorClass,
+  isAdded = false,
   onClick,
   onAdd,
 }: TrendingSetCardProps) {
@@ -56,12 +58,19 @@ export default function TrendingSetCard({
         <button 
           onClick={(e) => {
             e.stopPropagation();
+            if (isAdded) return;
             if (onAdd) onAdd(e);
           }}
-          className="w-8 h-8 rounded-full text-purple-600 hover:bg-purple-50 flex items-center justify-center transition-colors"
-          title="Add to My Library"
+          disabled={isAdded}
+          className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+            isAdded 
+              ? "text-emerald-500 bg-emerald-50 cursor-default" 
+              : "text-purple-600 hover:bg-purple-50"
+          )}
+          title={isAdded ? "Already in Library" : "Add to My Library"}
         >
-          <Plus className="w-5 h-5" />
+          {isAdded ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
         </button>
       </div>
     </div>

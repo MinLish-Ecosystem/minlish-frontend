@@ -17,10 +17,11 @@ import { useAuth } from "../../hooks/useAuth";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../../store";
 import { fetchVocabSets } from "../../store/slices/vocabSlice";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { EmptyState } from "../../components/common";
+import api from "../../lib/api";
 
-const StatCard = ({ label, value, trend, icon: Icon, color }: any) => (
+const StatCard = ({ label, value, trend, icon: Icon, color, footer }: any) => (
   <motion.div 
     whileHover={{ y: -4 }}
     className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between"
@@ -29,16 +30,13 @@ const StatCard = ({ label, value, trend, icon: Icon, color }: any) => (
       <p className="text-sm font-semibold text-slate-400 mb-1">{label}</p>
       <h3 className="text-3xl font-bold text-slate-800">{value}</h3>
       {trend && (
-        <p className={`text-xs font-bold mt-2 flex items-center gap-1 ${trend.startsWith('+') ? 'text-emerald-500' : 'text-orange-500'}`}>
-          {trend.startsWith('+') ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
-          {trend} this week
+        <p className={`text-xs font-bold mt-2 flex items-center gap-1 ${trend.startsWith('+') ? 'text-emerald-500' : 'text-slate-500'}`}>
+          {trend.startsWith('+') && <TrendingUp className="w-3 h-3" />}
+          {trend.startsWith('-') && <TrendingUp className="w-3 h-3 rotate-180" />}
+          {trend}
         </p>
       )}
-      {!trend && (
-        <p className="text-xs font-bold mt-2 flex items-center gap-1 text-emerald-500">
-           <CheckCircle2 className="w-3 h-3" /> Daily goal met
-        </p>
-      )}
+      {!trend && footer}
     </div>
     <div className={`w-14 h-14 rounded-full flex items-center justify-center ${color}`}>
       <Icon className="w-7 h-7" />
@@ -92,15 +90,48 @@ export default function Dashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { sets, setsLoading } = useSelector((state: RootState) => state.vocab);
+  const [dueSummary, setDueSummary] = useState<any>({ 
+    newWordsCount: 0, 
+    dueReviewsCount: 0, 
+    totalDueCount: 0,
+    rawNewWordsCount: 0,
+    rawDueReviewsCount: 0
+  });
+  const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    dispatch(fetchVocabSets({}));
+    dispatch(fetchVocabSets({ limit: 4, includeProgress: true }));
+
+    const fetchDueSummary = async () => {
+      try {
+        const res = await api.get("/api/v1/learning/due-summary");
+        if (res.data.success && res.data.data) {
+          setDueSummary(res.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to load due summary on dashboard:", error);
+      }
+    };
+
+    const fetchDashboardStats = async () => {
+      try {
+        const res = await api.get("/api/v1/stats/dashboard");
+        if (res.data.success && res.data.data) {
+          setStats(res.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard stats:", error);
+      }
+    };
+
+    fetchDueSummary();
+    fetchDashboardStats();
   }, [dispatch]);
 
-  // Navigate to flashcard session for the most recently updated set
+  // Navigate to global flashcard session
   const handleResumeLesson = () => {
     if (sets.length > 0) {
-      navigate(`/learn/${sets[0].id}`);
+      navigate("/learn/session");
     } else {
       navigate("/vocabulary");
     }
@@ -108,7 +139,7 @@ export default function Dashboard() {
 
   const handleStartReview = () => {
     if (sets.length > 0) {
-      navigate(`/learn/${sets[0].id}`);
+      navigate("/learn/session");
     } else {
       navigate("/vocabulary");
     }
@@ -117,35 +148,50 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       {/* Welcome Banner */}
-      <section className="relative w-full h-60 rounded-4xl overflow-hidden shadow-2xl shadow-purple-200">
-        <div className="absolute inset-0 bg-linear-to-r from-[#667eea] to-[#764ba2]" />
+      <section className="relative w-full h-64 rounded-3xl overflow-hidden border border-slate-200/20 shadow-xl shadow-indigo-950/10 flex flex-col justify-center">
+        {/* Futuristic Background Mesh */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950" />
         
-        {/* Blob Decor */}
-        <div className="absolute -top-12 -right-12 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-black/10 rounded-full blur-3xl" />
+        {/* Aurora Glowing Orbs */}
+        <div className="absolute -top-24 -right-24 w-80 h-80 bg-purple-500/20 rounded-full blur-[100px] animate-[pulse_6s_ease-in-out_infinite]" />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-[100px] animate-[pulse_8s_ease-in-out_infinite_reverse]" />
+        <div className="absolute top-1/2 left-1/3 w-40 h-40 bg-pink-500/10 rounded-full blur-[80px]" />
 
-        <div className="relative h-full flex flex-col justify-center px-12 z-10">
+        <div className="relative px-10 md:px-14 z-10 flex flex-col justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <span className="px-3.5 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs font-black text-purple-300 uppercase tracking-widest border border-white/5 inline-block mb-4 shadow-inner">
+              ✨ Level Up Your English
+            </span>
+          </motion.div>
+          
           <motion.h2 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-5xl font-bold text-white mb-4"
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-4xl md:text-5xl font-black text-white mb-3 tracking-tight drop-shadow-md"
           >
-            Welcome back, {user?.name.split(' ')[0]}!
+            Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-indigo-300 to-pink-300">{user?.name.split(' ')[0]}</span>!
           </motion.h2>
+          
           <motion.p 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-purple-100 text-lg max-w-xl mb-8"
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-slate-300 text-base md:text-lg max-w-xl mb-6 font-medium leading-relaxed"
           >
             You're making great progress. Keep up the momentum and reach your daily goals.
           </motion.p>
+          
           <motion.button 
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
             onClick={handleResumeLesson}
-            className="w-fit bg-white text-purple-600 px-8 py-4 rounded-full font-bold shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
+            className="w-fit bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-400 hover:to-indigo-500 px-8 py-3.5 rounded-2xl font-black shadow-lg shadow-purple-950/20 flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all border border-purple-400/20 cursor-pointer"
           >
             <History className="w-5 h-5" />
             Resume Last Lesson
@@ -156,24 +202,52 @@ export default function Dashboard() {
       {/* Widgets Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard 
-          label="New Words Learned" 
-          value="24" 
-          trend="+12%" 
+          label="Total Words Learned" 
+          value={stats ? stats.totalWordsLearned : "..."} 
+          trend={stats && stats.todayStats?.newLearned > 0 ? `+${stats.todayStats.newLearned} today` : undefined} 
           icon={PlusCircle} 
           color="bg-cyan-50 text-cyan-500" 
+          footer={
+            stats && stats.isNewGoalMet ? (
+              <p className="text-xs font-bold mt-2 flex items-center gap-1 text-emerald-500">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Daily goal met
+              </p>
+            ) : (
+              <p className="text-xs font-bold mt-2 text-slate-400">
+                Progress: {stats?.todayStats?.newLearned ?? 0}/{stats?.dailyGoal ?? 10} today
+              </p>
+            )
+          }
         />
         <StatCard 
-          label="Words Reviewed" 
-          value="186" 
+          label="Words Mastered" 
+          value={stats ? stats.masteredWords : "..."} 
+          trend={stats && stats.todayStats?.reviewed > 0 ? `+${stats.todayStats.reviewed} reviewed today` : undefined}
           icon={History} 
           color="bg-emerald-50 text-emerald-500" 
+          footer={
+            stats && stats.isReviewGoalMet ? (
+              <p className="text-xs font-bold mt-2 flex items-center gap-1 text-emerald-500">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Daily review goal met
+              </p>
+            ) : (
+              <p className="text-xs font-bold mt-2 text-slate-400">
+                Progress: {stats?.todayStats?.reviewed ?? 0}/{stats?.reviewPerDay ?? 20} today
+              </p>
+            )
+          }
         />
         <StatCard 
           label="Current Streak" 
-          value="14 Days" 
-          trend="Keep it burning!" 
+          value={stats ? `${stats.streak?.current ?? 0} Days` : "..."} 
+          trend={stats ? `Longest: ${stats.streak?.longest ?? 0} days` : "Keep it burning!"} 
           icon={Flame} 
           color="bg-orange-50 text-orange-500" 
+          footer={
+            <p className="text-xs font-bold mt-2 text-slate-400">
+              Longest: {stats?.streak?.longest ?? 0} days
+            </p>
+          }
         />
       </div>
 
@@ -217,7 +291,7 @@ export default function Dashboard() {
                      name={set.name}
                      description={set.description || set.category}
                      words={set.totalWords}
-                     mastery={0}
+                     mastery={set.progress?.masteredPct ?? 0}
                      level={set.level}
                      color={set.colorTheme === 'emerald' ? 'border-emerald-400' : set.colorTheme === 'amber' ? 'border-amber-400' : set.colorTheme === 'purple' ? 'border-purple-500' : set.colorTheme === 'rose' ? 'border-rose-400' : set.colorTheme === 'cyan' ? 'border-cyan-400' : 'border-cyan-400'}
                      icon={set.category === 'Travel' ? Plane : set.category === 'Business' ? Briefcase : Utensils}
@@ -239,7 +313,15 @@ export default function Dashboard() {
               </div>
               <h3 className="text-2xl font-bold text-slate-800 mb-2">Daily Review</h3>
               <p className="text-slate-500 mb-8 leading-relaxed">
-                You have <span className="text-purple-600 font-bold text-lg mx-1">42</span> words due for Spaced Repetition review today.
+                {dueSummary.rawDueReviewsCount && dueSummary.rawDueReviewsCount > dueSummary.dueReviewsCount ? (
+                  <>
+                    Bạn có <span className="text-purple-600 font-bold text-lg mx-1">{dueSummary.dueReviewsCount}</span> từ cần ôn tập hôm nay (trên tổng số <span className="text-slate-600 font-bold">{dueSummary.rawDueReviewsCount}</span> từ đến hạn theo lịch trình SRS).
+                  </>
+                ) : (
+                  <>
+                    Bạn có <span className="text-purple-600 font-bold text-lg mx-1">{dueSummary.dueReviewsCount}</span> từ cần ôn tập hôm nay theo lịch trình SRS.
+                  </>
+                )}
               </p>
               <button
                 onClick={handleStartReview}
