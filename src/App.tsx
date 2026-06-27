@@ -31,6 +31,10 @@ const Maintenance = lazy(() => import("./pages/Maintenance"));
 const AdminVocabularySets = lazy(() => import("./pages/admin/AdminVocabularySets"));
 const AdminVocabSetDetail = lazy(() => import("./pages/admin/AdminVocabSetDetail"));
 const AdminCreateEditVocabSet = lazy(() => import("./pages/admin/AdminCreateEditVocabSet"));
+const Community = lazy(() => import("./pages/community/Community"));
+const CommunityPostDetail = lazy(() => import("./pages/community/CommunityPostDetail"));
+const CommunityEditor = lazy(() => import("./pages/community/CommunityEditor"));
+const Statistics = lazy(() => import("./pages/statistics/Statistics"));
 
 // Vocabulary
 const VocabularySets = lazy(() => import("./pages/vocabulary/VocabularySets"));
@@ -164,6 +168,38 @@ export default function App() {
               }
             />
             <Route
+              path="/community"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <Community />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/community/new"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CommunityEditor />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/community/post/:postId"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CommunityPostDetail />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/community/post/:postId/edit"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CommunityEditor />
+                </Suspense>
+              }
+            />
+            <Route
               path="/explore"
               element={
                 <Suspense fallback={<PageLoader />}>
@@ -192,6 +228,14 @@ export default function App() {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <Settings />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/statistics"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <Statistics />
                 </Suspense>
               }
             />
