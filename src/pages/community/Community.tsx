@@ -430,18 +430,18 @@ export default function Community() {
                 <div className="p-6 flex flex-col flex-grow">
                   <div className="flex items-center gap-3 mb-4 text-xs text-slate-500">
                     <div className="flex items-center gap-1.5 font-medium">
-                      {featuredPost.author.avatar ? (
+                      {featuredPost.author?.avatar ? (
                         <img
                           src={featuredPost.author.avatar}
-                          alt={featuredPost.author.name}
+                          alt={featuredPost.author.name || "Author"}
                           className="w-5 h-5 rounded-full object-cover"
                         />
                       ) : (
                         <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-[10px] font-bold border">
-                          {featuredPost.author.name[0]}
+                          {featuredPost.author?.name?.[0] || "U"}
                         </div>
                       )}
-                      <span>{featuredPost.author.name}</span>
+                      <span>{featuredPost.author?.name || "Anonymous"}</span>
                     </div>
                     <span>•</span>
                     <span>{formatAge(featuredPost.createdAt)}</span>
@@ -504,18 +504,18 @@ export default function Community() {
                 <div className="p-6 flex flex-col flex-grow">
                   <div className="flex items-center gap-3 mb-4 text-xs text-slate-500">
                     <div className="flex items-center gap-1.5 font-medium">
-                      {post.author.avatar ? (
+                      {post.author?.avatar ? (
                         <img
                           src={post.author.avatar}
-                          alt={post.author.name}
+                          alt={post.author.name || "Author"}
                           className="w-5 h-5 rounded-full object-cover"
                         />
                       ) : (
                         <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-[10px] font-bold border">
-                          {post.author.name[0]}
+                          {post.author?.name?.[0] || "U"}
                         </div>
                       )}
-                      <span>{post.author.name}</span>
+                      <span>{post.author?.name || "Anonymous"}</span>
                     </div>
                     <span>•</span>
                     <span>{formatAge(post.createdAt)}</span>

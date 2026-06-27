@@ -47,13 +47,33 @@ export default function Statistics() {
     }
   };
 
-  if (loading || !dashboardData) {
+  if (loading) {
     return (
       <div className="flex h-[400px] w-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" />
           <p className="text-sm font-medium text-slate-500">Loading learning statistics…</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!dashboardData) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center p-8 bg-white rounded-3xl border border-slate-100 shadow-sm max-w-md mx-auto text-center flex-col gap-4 my-12">
+        <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto">
+          <span className="material-symbols-outlined text-2xl">error</span>
+        </div>
+        <div>
+          <h3 className="font-bold text-slate-800 text-lg">Failed to load statistics</h3>
+          <p className="text-slate-500 text-sm mt-1">Please make sure the backend server is running and try again.</p>
+        </div>
+        <button 
+          onClick={loadStatistics}
+          className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-xs font-bold transition-all shadow-md cursor-pointer mx-auto"
+        >
+          Retry
+        </button>
       </div>
     );
   }
