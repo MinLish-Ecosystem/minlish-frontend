@@ -322,17 +322,4 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
-}              </td>
-                    <td className="py-3 pr-4 text-xs text-slate-500 italic max-w-xs truncate">
-                      {log.reason || "N/A"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
 }
