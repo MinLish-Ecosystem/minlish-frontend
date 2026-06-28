@@ -170,8 +170,8 @@ export default function AdminLayout() {
         <nav className="flex-1 space-y-1">
           <SidebarItem to="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
           <SidebarItem to="/admin/users" icon={Users} label="User Management" />
-          <SidebarItem to="/admin/vocabulary" icon={BookOpen} label="Public Sets (Editor)" />
-          <SidebarItem to="/admin/posts" icon={FileText} label="Public Posts (Editor)" />
+          <SidebarItem to="/admin/vocabulary" icon={BookOpen} label="Public Sets" />
+          <SidebarItem to="/admin/posts" icon={FileText} label="Public Posts" />
           <SidebarItem to="/admin/moderation" icon={ShieldCheck} label="Content Moderation" />
           <SidebarItem to="/admin/settings" icon={Settings} label="Settings" />
         </nav>
@@ -358,6 +358,7 @@ export default function AdminLayout() {
             </form>
           </div>
         </div>
+      )}
       {/* Confirm Logout Modal */}
       <ConfirmLogoutModal
         isOpen={showLogoutModal}

@@ -45,7 +45,7 @@ export default function AdminVocabularySets() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Không thể tải danh sách bộ từ công khai");
+      toast.error("Failed to load public vocabulary sets");
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ export default function AdminVocabularySets() {
 
   const handleCreateSet = async () => {
     if (!form.name.trim()) {
-      toast.error("Tên bộ từ là bắt buộc");
+      toast.error("Vocabulary set name is required");
       return;
     }
 
@@ -78,7 +78,7 @@ export default function AdminVocabularySets() {
       });
 
       if (res.data?.success) {
-        toast.success("Đã tạo bộ từ công khai!");
+        toast.success("Public vocabulary set created!");
         setShowCreate(false);
         setForm({
           name: "",
@@ -91,7 +91,7 @@ export default function AdminVocabularySets() {
         navigate(`/admin/vocabulary/${createdSet.id || createdSet._id}`);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Không thể tạo bộ từ. Vui lòng thử lại.");
+      toast.error(err.response?.data?.message || "Failed to create vocabulary set. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -102,7 +102,7 @@ export default function AdminVocabularySets() {
       const response = await api.get(`/api/v1/vocab/sets/${setId}/words`);
       const words = response.data.data || [];
       if (words.length === 0) {
-        toast.error("Bộ từ này không có từ nào để xuất.");
+        toast.error("This set has no words to export.");
         return;
       }
 
@@ -136,10 +136,10 @@ export default function AdminVocabularySets() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success("Xuất CSV thành công!");
+      toast.success("CSV exported successfully!");
     } catch (err) {
       console.error("Failed to export CSV:", err);
-      toast.error("Không thể xuất file CSV.");
+      toast.error("Failed to export CSV file.");
     }
   };
 
@@ -237,10 +237,10 @@ export default function AdminVocabularySets() {
                 if (!ok) return;
                 try {
                   await api.delete(`/api/v1/vocab/sets/${set.id}`);
-                  toast.success("Đã xóa bộ từ vựng");
+                  toast.success("Vocabulary set deleted successfully");
                   fetchSets();
                 } catch {
-                  toast.error("Không thể xóa bộ từ vựng. Vui lòng thử lại.");
+                  toast.error("Failed to delete vocabulary set. Please try again.");
                 }
               }}
             />

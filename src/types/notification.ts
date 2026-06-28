@@ -1,7 +1,7 @@
 export interface NotificationItem {
   _id: string;
   userId: string;
-  type: "daily_reminder" | "review_due" | "streak_milestone" | "achievement" | "system";
+  type: "daily_reminder" | "review_due" | "streak_milestone" | "achievement" | "system" | "report" | "ai_moderation";
   title: string;
   message: string;
   isRead: boolean;

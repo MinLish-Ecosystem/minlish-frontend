@@ -36,6 +36,7 @@ const CommunityPostDetail = lazy(() => import("./pages/community/CommunityPostDe
 const CommunityEditor = lazy(() => import("./pages/community/CommunityEditor"));
 const MyContentManager = lazy(() => import("./pages/community/MyContentManager"));
 const AdminCommunityPosts = lazy(() => import("./pages/admin/AdminCommunityPosts"));
+const AdminNotificationsPage = lazy(() => import("./pages/admin/AdminNotificationsPage"));
 const Statistics = lazy(() => import("./pages/statistics/Statistics"));
 
 // Vocabulary
@@ -357,10 +358,26 @@ export default function App() {
               }
             />
             <Route
+              path="/admin/posts/new"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CommunityEditor />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/posts/:postId/edit"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CommunityEditor />
+                </Suspense>
+              }
+            />
+            <Route
               path="/admin/notifications"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <NotificationsPage />
+                  <AdminNotificationsPage />
                 </Suspense>
               }
             />

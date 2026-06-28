@@ -37,7 +37,7 @@ export default function SessionExpiredManager() {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl border border-slate-100">
         <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
-          <span className="material-symbols-outlined text-3xl animate-spin">refresh</span>
+          <div className="w-8 h-8 rounded-full border-4 border-red-200 border-t-red-500 animate-spin" />
         </div>
         <h3 className="text-lg font-bold text-slate-800 mb-2 font-headline-md">Session Expired</h3>
         <p className="text-sm text-slate-500 mb-6 font-sans">

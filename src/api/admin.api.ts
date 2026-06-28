@@ -27,6 +27,9 @@ export const unbanUser = (id: string) =>
 export const deleteUser = (id: string) =>
   api.delete<ApiResponse<any>>(`/api/v1/admin/users/${id}`);
 
+export const resetUserAuthApi = (id: string, email: string) =>
+  api.post<ApiResponse<any>>(`/api/v1/admin/users/${id}/reset-auth`, { email });
+
 // ─── System Config ────────────────────────────────────────────────────────────
 export interface SystemConfigData {
   maintenanceMode: boolean;
@@ -67,5 +70,5 @@ export const getPendingPosts = () =>
 export const overridePostModeration = (payload: { postId: string; status: 'approved' | 'rejected'; reason: string }) =>
   api.put<ApiResponse<any>>('/api/v1/admin/moderation/posts/override', payload);
 
-export const listAllPosts = (page: number = 1, limit: number = 20) =>
-  api.get<ApiResponse<any>>('/api/v1/admin/posts', { params: { page, limit } });
+export const listAllPosts = (page: number = 1, limit: number = 20, tab: 'published' | 'drafts' | 'pending' | 'moderated' = 'published', q?: string) =>
+  api.get<ApiResponse<any>>('/api/v1/admin/posts', { params: { page, limit, tab, q } });

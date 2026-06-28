@@ -1022,7 +1022,7 @@ export default function CreateEditVocabSet() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-        <span className="material-symbols-outlined text-4xl text-primary animate-spin">refresh</span>
+        <div className="w-10 h-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" />
         <p className="text-slate-500 font-medium">Loading set details...</p>
       </div>
     );
@@ -1038,7 +1038,7 @@ export default function CreateEditVocabSet() {
       {/* Full-screen Loading Overlay for saving */}
       {saveLoading && (
         <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center gap-4 text-white">
-          <span className="material-symbols-outlined text-5xl animate-spin text-[#c0c1ff]">refresh</span>
+          <div className="w-12 h-12 rounded-full border-4 border-purple-300/30 border-t-purple-500 animate-spin" />
           <p className="font-bold text-lg tracking-wide">Saving Vocabulary Set...</p>
           <p className="text-sm text-slate-300">Synchronizing database details, please wait</p>
         </div>

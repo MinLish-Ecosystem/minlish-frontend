@@ -94,22 +94,19 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
 
 function SRSButton({
   label,
-  sublabel,
   color,
   onClick,
 }: {
   label: string;
-  sublabel: string;
   color: string;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex-1 flex flex-col items-center py-3 px-2 rounded-2xl font-bold transition-all duration-150 hover:scale-105 active:scale-95 shadow-sm ${color}`}
+      className={`flex-1 flex items-center justify-center py-3.5 px-2 rounded-2xl font-bold transition-all duration-150 hover:scale-105 active:scale-95 shadow-sm text-sm ${color}`}
     >
-      <span className="text-sm font-bold">{label}</span>
-      <span className="text-[10px] mt-0.5 opacity-70 font-medium">{sublabel}</span>
+      {label}
     </button>
   );
 }
@@ -401,18 +398,22 @@ export default function FlashcardSession() {
           setIsCustomPractice(false);
         } else {
           // Fallback: Lấy tất cả từ vựng của tất cả các bộ từ trong thư viện cá nhân
-          const setsRes = await api.get("/api/v1/vocab/sets?limit=100");
-          const userSets = setsRes.data.data || [];
+          // Dùng Promise.allSettled để không crash nếu 1 set bị 403/404
+          const setsRes = await api.get("/api/v1/vocab/sets?limit=50");
+          const userSets: any[] = setsRes.data.data || [];
           if (userSets.length > 0) {
-            const promises = userSets.map((s: any) => api.get(`/api/v1/vocab/sets/${s.id}/words`));
-            const responses = await Promise.all(promises);
-            const allWords = responses.flatMap((r) => r.data.data || []);
+            const settled = await Promise.allSettled(
+              userSets.map((s: any) => api.get(`/api/v1/vocab/sets/${s.id}/words`))
+            );
+            const allWords = settled
+              .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+              .flatMap((r) => r.value.data.data || []);
 
             if (allWords.length > 0) {
               // Loại bỏ trùng lặp từ vựng theo chữ thường
-              const seen = new Set();
+              const seen = new Set<string>();
               const uniqueWords = allWords.filter((w: any) => {
-                const lower = w.word.toLowerCase();
+                const lower = (w.word || "").toLowerCase();
                 if (seen.has(lower)) return false;
                 seen.add(lower);
                 return true;
@@ -445,9 +446,16 @@ export default function FlashcardSession() {
           }
         }
       }
-    } catch (err) {
-      console.error("Failed to load learning queue", err);
-      toast.error("Failed to load session details.");
+    } catch (err: any) {
+      // Chỉ hiện toast lỗi thật, không phải khi empty state
+      const status = err?.response?.status;
+      if (status && status !== 404 && status !== 403) {
+        console.error("Failed to load learning queue", err);
+        toast.error("Không thể tải phiên học. Vui lòng thử lại.");
+      } else {
+        console.warn("Session empty or access denied for some sets", err);
+        setCards([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -490,12 +498,17 @@ export default function FlashcardSession() {
       pendingReviewsRef.current.push(newReview);
       savePendingToStorage(pendingReviewsRef.current);
 
+      // Background periodic sync every 5 reviews
+      if (pendingReviewsRef.current.length >= 5) {
+        syncPendingReviews();
+      }
+
       // Animate card exit
-      setTimeout(async () => {
+      setTimeout(() => {
         if (currentIndex + 1 >= totalCards) {
           setSessionDone(true);
-          // Sync all reviews on session completion
-          await syncPendingReviews();
+          // Sync all reviews on session completion (non-blocking)
+          syncPendingReviews();
         } else {
           setCurrentIndex((i) => i + 1);
           setIsFlipped(false);
@@ -516,7 +529,12 @@ export default function FlashcardSession() {
   };
 
   // ── Restart ──
-  const handleRestart = () => {
+  const handleRestart = async () => {
+    if (pendingReviewsRef.current.length > 0) {
+      toast.loading("Refreshing learning progress...", { id: "restart_sync" });
+      await syncPendingReviews();
+      toast.dismiss("restart_sync");
+    }
     setCurrentIndex(0);
     setIsFlipped(false);
     setSessionDone(false);
@@ -525,11 +543,11 @@ export default function FlashcardSession() {
   };
 
   // ── Exit ──
-  const handleExit = async () => {
+  const handleExit = () => {
     if (pendingReviewsRef.current.length > 0) {
-      const toastId = toast.loading("Đang đồng bộ tiến độ học tập...");
-      await syncPendingReviews();
-      toast.dismiss(toastId);
+      // Fire-and-forget background sync
+      syncPendingReviews();
+      toast.success("Learning progress saved!");
     }
     if (setId) navigate(`/vocabulary/${setId}`);
     else navigate("/vocabulary");
@@ -884,25 +902,21 @@ export default function FlashcardSession() {
             <div className="flex gap-2">
               <SRSButton
                 label="Again"
-                sublabel="< 1 min"
                 color="bg-red-50 text-red-600 border border-red-100 hover:bg-red-100"
                 onClick={() => handleRating("again")}
               />
               <SRSButton
                 label="Hard"
-                sublabel="< 10 min"
                 color="bg-orange-50 text-orange-600 border border-orange-100 hover:bg-orange-100"
                 onClick={() => handleRating("hard")}
               />
               <SRSButton
                 label="Good"
-                sublabel="1 day"
                 color="bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100"
                 onClick={() => handleRating("good")}
               />
               <SRSButton
                 label="Easy"
-                sublabel="4 days"
                 color="bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100"
                 onClick={() => handleRating("easy")}
               />

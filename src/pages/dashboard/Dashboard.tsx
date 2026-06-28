@@ -9,7 +9,8 @@ import {
   TrendingUp,
   CheckCircle2,
   BrainCircuit,
-  Compass
+  Compass,
+  AlertCircle
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
@@ -95,7 +96,8 @@ export default function Dashboard() {
     dueReviewsCount: 0, 
     totalDueCount: 0,
     rawNewWordsCount: 0,
-    rawDueReviewsCount: 0
+    rawDueReviewsCount: 0,
+    dailyGoal: 10
   });
   const [stats, setStats] = useState<any>(null);
 
@@ -328,11 +330,23 @@ export default function Dashboard() {
                       <p className="text-[10px] text-slate-400">Chưa từng học</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-extrabold text-cyan-600">{dueSummary.newWordsCount}</span>
-                    {dueSummary.rawNewWordsCount > dueSummary.newWordsCount && (
-                      <p className="text-[9px] text-slate-400">/ {dueSummary.rawNewWordsCount} tổng</p>
+                  <div className="text-right flex items-center gap-2">
+                    {/* Tooltip cảnh báo không đủ từ mới */}
+                    {(dueSummary.rawNewWordsCount ?? 0) < (dueSummary.dailyGoal ?? 10) && (dueSummary.rawNewWordsCount ?? 0) >= 0 && (
+                      <div className="relative group cursor-default">
+                        <AlertCircle className="w-4 h-4 text-amber-400" />
+                        <div className="absolute right-0 bottom-full mb-2 w-52 bg-slate-800 text-white text-[11px] font-medium rounded-xl px-3 py-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 leading-relaxed">
+                          Thư viện chỉ còn <strong className="text-amber-300">{dueSummary.rawNewWordsCount ?? 0}</strong> từ mới — chưa đủ mục tiêu <strong className="text-amber-300">{dueSummary.dailyGoal ?? 10}</strong> từ/ngày. Hãy thêm bộ từ mới.
+                          <div className="absolute right-2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-800" />
+                        </div>
+                      </div>
                     )}
+                    <div>
+                      <span className="text-2xl font-extrabold text-cyan-600">{dueSummary.newWordsCount}</span>
+                      {dueSummary.rawNewWordsCount > dueSummary.newWordsCount && (
+                        <p className="text-[9px] text-slate-400">/ {dueSummary.rawNewWordsCount} tổng</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 

@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { Bell, Flame, Trophy, Clock, Info, CheckCheck } from "lucide-react";
+import {
+  Bell, Flame, Trophy, Clock, Info, CheckCheck,
+  Flag, Bot, ExternalLink
+} from "lucide-react";
 import { RootState, AppDispatch } from "../../store";
 import { useAuth } from "../../hooks/useAuth";
 import {
@@ -21,13 +24,13 @@ const formatRelativeTime = (dateString: string) => {
   const diffHr = Math.floor(diffMin / 60);
   const diffDays = Math.floor(diffHr / 24);
 
-  if (diffSec < 10) return "Vừa xong";
-  if (diffSec < 60) return `${diffSec} giây trước`;
-  if (diffMin < 60) return `${diffMin} phút trước`;
-  if (diffHr < 24) return `${diffHr} giờ trước`;
-  if (diffDays === 1) return "Hôm qua";
-  if (diffDays < 7) return `${diffDays} ngày trước`;
-  return date.toLocaleDateString("vi-VN");
+  if (diffSec < 10) return "Just now";
+  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-US");
 };
 
 export default function NotificationDropdown() {
@@ -37,25 +40,29 @@ export default function NotificationDropdown() {
   const dispatch = useDispatch<AppDispatch>();
 
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const { notifications, unreadCount, loading } = useSelector(
     (state: RootState) => state.notification
   );
 
-  // Lấy 5 thông báo mới nhất cho dropdown
-  const latestNotifications = notifications.slice(0, 5);
+  // For admin: only show report and ai_moderation; for users: show all
+  const filteredNotifications = isAdmin
+    ? notifications.filter((n) => n.type === "report" || n.type === "ai_moderation")
+    : notifications;
+
+  const latestNotifications = filteredNotifications.slice(0, 5);
 
   useEffect(() => {
     dispatch(fetchUnreadCount());
   }, [dispatch]);
 
-  // Fetch thông báo khi mở dropdown
   useEffect(() => {
     if (isOpen) {
-      dispatch(fetchNotifications({ page: 1, limit: 10 }));
+      dispatch(fetchNotifications({ page: 1, limit: 20 }));
     }
   }, [isOpen, dispatch]);
 
-  // Click outside to close dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -63,9 +70,7 @@ export default function NotificationDropdown() {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleNotificationClick = async (notif: any) => {
@@ -74,10 +79,19 @@ export default function NotificationDropdown() {
     }
     setIsOpen(false);
 
-    // Xử lý điều hướng thông minh dựa trên type & data
     const type = notif.type;
     const data = notif.data || {};
 
+    if (isAdmin) {
+      if (type === "ai_moderation") {
+        // Navigate to content moderation page
+        navigate("/admin/moderation");
+      }
+      // For "report" type: read-only, no navigation
+      return;
+    }
+
+    // User navigation logic
     if (data.setId) {
       navigate(`/vocabulary/${data.setId}`);
     } else if (type === "daily_reminder" || type === "review_due") {
@@ -95,15 +109,15 @@ export default function NotificationDropdown() {
 
   const handleViewAll = () => {
     setIsOpen(false);
-    if (user?.role === "admin") {
-      navigate("/admin/notifications");
-    } else {
-      navigate("/notifications");
-    }
+    navigate(isAdmin ? "/admin/notifications" : "/notifications");
   };
 
   const getIcon = (type: string) => {
     switch (type) {
+      case "report":
+        return <Flag className="w-4 h-4 text-rose-500" />;
+      case "ai_moderation":
+        return <Bot className="w-4 h-4 text-violet-500" />;
       case "streak_milestone":
         return <Flame className="w-4 h-4 text-orange-500 fill-orange-100" />;
       case "achievement":
@@ -114,6 +128,18 @@ export default function NotificationDropdown() {
       case "system":
       default:
         return <Info className="w-4 h-4 text-blue-500 fill-blue-100" />;
+    }
+  };
+
+  const getIconBg = (type: string) => {
+    switch (type) {
+      case "report": return "bg-rose-50 border-rose-100";
+      case "ai_moderation": return "bg-violet-50 border-violet-100";
+      case "streak_milestone": return "bg-orange-50 border-orange-100";
+      case "achievement": return "bg-yellow-50 border-yellow-100";
+      case "daily_reminder":
+      case "review_due": return "bg-purple-50 border-purple-100";
+      default: return "bg-blue-50 border-blue-100";
     }
   };
 
@@ -135,36 +161,56 @@ export default function NotificationDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-[360px] bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="absolute right-0 mt-3 w-[380px] bg-white/98 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-3 duration-200">
           {/* Header */}
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-bold text-slate-800 text-base">Thông báo</h3>
+          <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+            <div className="flex items-center gap-2">
+              {isAdmin ? (
+                <div className="p-1.5 bg-violet-100 rounded-lg">
+                  <Bell className="w-3.5 h-3.5 text-violet-600" />
+                </div>
+              ) : (
+                <Bell className="w-4 h-4 text-slate-500" />
+              )}
+              <h3 className="font-bold text-slate-800 text-sm">
+                {isAdmin ? "Admin Notifications" : "Notifications"}
+              </h3>
+              {isAdmin && (
+                <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                  Reports & AI
+                </span>
+              )}
+            </div>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
                 className="text-xs text-purple-600 hover:text-purple-700 font-semibold flex items-center gap-1 transition-colors"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
-                Đọc tất cả
+                Mark all read
               </button>
             )}
           </div>
 
           {/* List */}
-          <div className="max-h-[350px] overflow-y-auto divide-y divide-slate-50">
+          <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-50">
             {loading && notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
                 <div className="w-6 h-6 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
-                <p className="text-xs text-slate-400 font-medium">Đang tải thông báo...</p>
+                <p className="text-xs text-slate-400 font-medium">Loading notifications…</p>
               </div>
             ) : latestNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mb-3">
-                  <Bell className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mb-3 border border-slate-100">
+                  {isAdmin ? <Bot className="w-6 h-6" /> : <Bell className="w-6 h-6" />}
                 </div>
-                <p className="text-sm font-semibold text-slate-700">Hộp thư trống</p>
-                <p className="text-xs text-slate-400 mt-1 max-w-[200px]">
-                  Bạn sẽ nhận được thông báo khi có lịch ôn tập hoặc thành tích mới.
+                <p className="text-sm font-semibold text-slate-700">
+                  {isAdmin ? "No alerts yet" : "Inbox is empty"}
+                </p>
+                <p className="text-xs text-slate-400 mt-1 max-w-[220px]">
+                  {isAdmin
+                    ? "User reports and AI moderation results will appear here."
+                    : "You'll receive notifications when there are learning reminders or new achievements."}
                 </p>
               </div>
             ) : (
@@ -173,36 +219,59 @@ export default function NotificationDropdown() {
                   key={notif._id}
                   onClick={() => handleNotificationClick(notif)}
                   className={cn(
-                    "p-4 flex gap-3 cursor-pointer hover:bg-purple-50/50 transition-colors text-left relative",
-                    !notif.isRead && "bg-purple-50/20"
+                    "p-4 flex gap-3 transition-colors text-left relative group",
+                    !notif.isRead && "bg-purple-50/20",
+                    notif.type === "ai_moderation"
+                      ? "cursor-pointer hover:bg-violet-50/50"
+                      : notif.type === "report"
+                      ? "cursor-default"
+                      : "cursor-pointer hover:bg-purple-50/50"
                   )}
                 >
-                  {/* Icon Wrapper */}
-                  <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
+                  {/* Icon */}
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border",
+                    getIconBg(notif.type)
+                  )}>
                     {getIcon(notif.type)}
                   </div>
 
-                  {/* Body Content */}
+                  {/* Body */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-1">
-                      <p
-                        className={cn(
-                          "text-sm text-slate-800 leading-snug line-clamp-1",
-                          !notif.isRead ? "font-bold" : "font-medium"
-                        )}
-                      >
+                      <p className={cn(
+                        "text-sm text-slate-800 leading-snug line-clamp-1",
+                        !notif.isRead ? "font-bold" : "font-medium"
+                      )}>
                         {notif.title}
                       </p>
-                      {!notif.isRead && (
-                        <span className="w-2.5 h-2.5 rounded-full bg-purple-600 shrink-0 mt-1" />
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!notif.isRead && (
+                          <span className="w-2 h-2 rounded-full bg-purple-600 mt-0.5" />
+                        )}
+                        {notif.type === "ai_moderation" && (
+                          <ExternalLink className="w-3 h-3 text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" />
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
                       {notif.message}
                     </p>
-                    <span className="text-[10px] text-slate-400 mt-2 block font-medium">
-                      {formatRelativeTime(notif.createdAt)}
-                    </span>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {formatRelativeTime(notif.createdAt)}
+                      </span>
+                      {notif.type === "report" && (
+                        <span className="text-[10px] bg-rose-50 text-rose-500 px-1.5 py-0.5 rounded-full font-semibold">
+                          Read-only
+                        </span>
+                      )}
+                      {notif.type === "ai_moderation" && (
+                        <span className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-full font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                          View logs →
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -215,7 +284,7 @@ export default function NotificationDropdown() {
               onClick={handleViewAll}
               className="text-xs text-slate-600 hover:text-purple-600 font-bold transition-colors w-full block py-1"
             >
-              Xem tất cả thông báo
+              {isAdmin ? "View all admin notifications" : "View all notifications"}
             </button>
           </div>
         </div>

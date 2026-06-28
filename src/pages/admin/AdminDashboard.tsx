@@ -47,7 +47,7 @@ export default function AdminDashboard() {
       setSystemConfig(configRes.data.data);
     } catch (error) {
       console.error("Failed to load admin dashboard data:", error);
-      toast.error("Không thể tải thông tin thống kê hệ thống");
+      toast.error("Failed to load system statistics");
     } finally {
       setLoading(false);
     }
@@ -64,13 +64,13 @@ export default function AdminDashboard() {
       const res = await runAutoModeration();
       const stats = res.data.data;
       toast.success(
-        `Hoàn thành kiểm duyệt! Đã xử lý ${stats.processed} bộ từ: Duyệt ${stats.approved}, Từ chối ${stats.rejected}.`,
+        `Moderation completed! Processed ${stats.processed} sets: Approved ${stats.approved}, Rejected ${stats.rejected}.`,
         { duration: 5000 }
       );
       loadData();
     } catch (error) {
       console.error("Manual moderation trigger failed:", error);
-      toast.error("Không thể chạy kiểm duyệt tự động");
+      toast.error("Failed to run auto-moderation");
     } finally {
       setModerating(false);
     }
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
       <div className="flex h-full w-full items-center justify-center py-24">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" />
-          <p className="text-sm font-medium text-slate-500">Đang tải số liệu thống kê...</p>
+          <p className="text-sm font-medium text-slate-500">Loading dashboard stats...</p>
         </div>
       </div>
     );
@@ -92,9 +92,9 @@ export default function AdminDashboard() {
       {/* Top Banner & Refresh */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[#0b1c30]">Tổng quan Hệ thống</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-[#0b1c30]">System Overview</h2>
           <p className="text-slate-500 text-sm mt-1">
-            Theo dõi số lượng người dùng, trạng thái dịch vụ và kiểm duyệt nội dung.
+            Monitor system users, service health, and review content queues.
           </p>
         </div>
         <button 
@@ -103,7 +103,7 @@ export default function AdminDashboard() {
           className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 transition-colors shadow-sm disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Tải lại dữ liệu
+          Reload Data
         </button>
       </div>
 
@@ -119,9 +119,9 @@ export default function AdminDashboard() {
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Người dùng</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Registered Users</p>
             <h3 className="text-2xl font-extrabold text-[#0b1c30] mt-1">{stats?.totalUsers}</h3>
-            <p className="text-[11px] text-[#6900b3] font-semibold mt-1">Hoạt động: {stats?.activeUsers}</p>
+            <p className="text-[11px] text-[#6900b3] font-semibold mt-1">Active: {stats?.activeUsers}</p>
           </div>
         </div>
 
@@ -135,9 +135,9 @@ export default function AdminDashboard() {
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tài khoản bị khóa</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Banned Accounts</p>
             <h3 className="text-2xl font-extrabold text-[#0b1c30] mt-1">{stats?.bannedUsers}</h3>
-            <p className="text-[11px] text-slate-400 font-semibold mt-1">Cần xem xét giải trình</p>
+            <p className="text-[11px] text-slate-400 font-semibold mt-1">Pending review / appeal</p>
           </div>
         </div>
 
@@ -151,9 +151,9 @@ export default function AdminDashboard() {
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bộ từ công khai</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Public Vocabulary Sets</p>
             <h3 className="text-2xl font-extrabold text-[#0b1c30] mt-1">{stats?.totalSets}</h3>
-            <p className="text-[11px] text-emerald-600 font-semibold mt-1">Tổng cộng trên hệ thống</p>
+            <p className="text-[11px] text-emerald-600 font-semibold mt-1">Total published sets</p>
           </div>
         </div>
 
@@ -173,12 +173,12 @@ export default function AdminDashboard() {
             <Activity className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Đang chờ duyệt</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Review</p>
             <h3 className="text-2xl font-extrabold text-[#0b1c30] mt-1">{pendingCount}</h3>
             <p className={`text-[11px] font-semibold mt-1 ${
               pendingCount > 0 ? 'text-amber-600' : 'text-slate-400'
             }`}>
-              {pendingCount > 0 ? 'Yêu cầu kiểm duyệt AI/Tự động' : 'Tất cả bộ từ đã sạch'}
+              {pendingCount > 0 ? 'Requires AI/Manual scan review' : 'All sets clean'}
             </p>
           </div>
         </div>
@@ -188,7 +188,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Service Status Dashboard */}
         <div className="bg-white p-6 rounded-2xl border border-[#c7c4d7]/40 shadow-sm lg:col-span-2 space-y-4">
-          <h3 className="text-lg font-bold text-[#0b1c30]">Trạng thái Dịch vụ Hệ thống</h3>
+          <h3 className="text-lg font-bold text-[#0b1c30]">System Services Status</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* MongoDB */}
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
                 <Database className="w-5 h-5 text-[#1000a3]" />
                 <div>
                   <h4 className="text-sm font-semibold">MongoDB Database</h4>
-                  <p className="text-[10px] text-slate-400">Kết nối cơ sở dữ liệu chính</p>
+                  <p className="text-[10px] text-slate-400">Primary data storage connection</p>
                 </div>
               </div>
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -209,7 +209,7 @@ export default function AdminDashboard() {
                 <HardDrive className="w-5 h-5 text-[#8127cf]" />
                 <div>
                   <h4 className="text-sm font-semibold">Redis Cache & Queue</h4>
-                  <p className="text-[10px] text-slate-400">Bảng xếp hạng & Queue sinh đề</p>
+                  <p className="text-[10px] text-slate-400">Leaderboards, sessions & queues</p>
                 </div>
               </div>
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
                 <div>
                   <h4 className="text-sm font-semibold">SendGrid Mailer</h4>
                   <p className="text-[10px] text-slate-400">
-                    {systemConfig?.mailerActive ? "Đang kết nối gửi email" : "Đã vô hiệu hóa"}
+                    {systemConfig?.mailerActive ? "Connected and active" : "Disabled"}
                   </p>
                 </div>
               </div>
@@ -237,7 +237,7 @@ export default function AdminDashboard() {
                 <BrainCircuit className="w-5 h-5 text-[#8127cf]" />
                 <div>
                   <h4 className="text-sm font-semibold">Google Gemini API</h4>
-                  <p className="text-[10px] text-slate-400">Hỗ trợ tự động kiểm duyệt & Sinh đề</p>
+                  <p className="text-[10px] text-slate-400">Content moderation & generation support</p>
                 </div>
               </div>
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -248,9 +248,9 @@ export default function AdminDashboard() {
         {/* Auto Moderation Quick Trigger */}
         <div className="bg-white p-6 rounded-2xl border border-[#c7c4d7]/40 shadow-sm flex flex-col justify-between">
           <div>
-            <h3 className="text-lg font-bold text-[#0b1c30] mb-2">Chạy kiểm duyệt ngay</h3>
+            <h3 className="text-lg font-bold text-[#0b1c30] mb-2">Run Moderation Scan</h3>
             <p className="text-slate-500 text-xs leading-relaxed">
-              Bạn có thể cưỡng chế chạy bộ lọc AI Gemini kiểm duyệt ngay lập tức cho {pendingCount} bộ từ đang chờ xếp hàng mà không cần đợi hết chu kỳ {systemConfig?.moderationInterval} giờ.
+              You can trigger a manual Google Gemini AI moderation scan for the {pendingCount} vocabulary sets currently in the queue, without waiting for the next {systemConfig?.moderationInterval}h cycle.
             </p>
           </div>
           
@@ -262,12 +262,12 @@ export default function AdminDashboard() {
             {moderating ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Đang kiểm duyệt...
+                Moderating...
               </>
             ) : (
               <>
                 <Play className="w-4 h-4 fill-white" />
-                Kiểm duyệt {pendingCount} bộ từ
+                Moderate {pendingCount} sets
               </>
             )}
           </button>
@@ -276,29 +276,29 @@ export default function AdminDashboard() {
 
       {/* Bottom Row: Recent Audit Logs */}
       <div className="bg-white p-6 rounded-2xl border border-[#c7c4d7]/40 shadow-sm space-y-4">
-        <h3 className="text-lg font-bold text-[#0b1c30]">Nhật ký Hoạt động Quản trị viên (Audit Logs)</h3>
+        <h3 className="text-lg font-bold text-[#0b1c30]">Recent Admin Actions (Audit Logs)</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-slate-400 font-semibold">
-                <th className="pb-3 pr-4">Thời gian</th>
-                <th className="pb-3 pr-4">Hành động</th>
-                <th className="pb-3 pr-4">Đối tượng</th>
-                <th className="pb-3 pr-4">Lý do</th>
+                <th className="pb-3 pr-4">Time</th>
+                <th className="pb-3 pr-4">Action</th>
+                <th className="pb-3 pr-4">Target Entity</th>
+                <th className="pb-3 pr-4">Reason / Notes</th>
               </tr>
             </thead>
             <tbody>
               {auditLogs.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="text-center py-8 text-slate-400">
-                    Không tìm thấy nhật ký hoạt động nào gần đây.
+                    No recent admin actions recorded.
                   </td>
                 </tr>
               ) : (
                 auditLogs.map((log: any) => (
-                  <tr key={log._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={log._id} className="border-b border-slate-5 hover:bg-slate-50/50 transition-colors">
                     <td className="py-3 pr-4 text-xs text-slate-500">
-                      {new Date(log.createdAt).toLocaleString("vi-VN")}
+                      {new Date(log.createdAt).toLocaleString("en-US")}
                     </td>
                     <td className="py-3 pr-4">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -310,6 +310,19 @@ export default function AdminDashboard() {
                     <td className="py-3 pr-4 font-medium text-xs text-[#0b1c30]">
                       {log.targetType} ({log.targetId})
                     </td>
+                    <td className="py-3 pr-4 text-xs text-slate-500 italic max-w-xs truncate">
+                      {log.reason || "N/A"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}              </td>
                     <td className="py-3 pr-4 text-xs text-slate-500 italic max-w-xs truncate">
                       {log.reason || "N/A"}
                     </td>

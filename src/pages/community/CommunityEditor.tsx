@@ -104,7 +104,11 @@ export default function CommunityEditor() {
         });
 
         if (res.data?.success) {
-          toast.success(isPublicValue ? "Đã gửi yêu cầu phê duyệt bài viết công khai!" : "Đã lưu nháp bài viết riêng tư!");
+          if (user?.role === "admin") {
+            toast.success(isPublicValue ? "Đã đăng bài viết công khai thành công!" : "Đã lưu bản nháp thành công!");
+          } else {
+            toast.success(isPublicValue ? "Đã gửi yêu cầu phê duyệt bài viết công khai!" : "Đã lưu nháp bài viết riêng tư!");
+          }
           if (user?.role === "admin") {
             navigate("/admin/posts");
           } else {
@@ -145,9 +149,11 @@ export default function CommunityEditor() {
       {/* Context Header Breadcrumbs */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-          <Link to="/dashboard" className="hover:text-slate-800 transition-colors">Dashboard</Link>
+          <Link to={user?.role === "admin" ? "/admin/dashboard" : "/dashboard"} className="hover:text-slate-800 transition-colors">Dashboard</Link>
           <ChevronRight className="w-3.5 h-3.5" />
-          <Link to="/community" className="hover:text-slate-800 transition-colors">Community</Link>
+          <Link to={user?.role === "admin" ? "/admin/posts" : "/community"} className="hover:text-slate-800 transition-colors">
+            {user?.role === "admin" ? "Posts" : "Community"}
+          </Link>
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-slate-800">{isEditMode ? "Edit Article" : "Create New Article"}</span>
         </div>
@@ -329,14 +335,16 @@ export default function CommunityEditor() {
             >
               Hủy bỏ
             </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => handlePublish(false)}
-              className="px-5 py-2.5 border border-[#4648d4] text-[#4648d4] hover:bg-purple-50/50 rounded-full font-bold text-xs transition-all disabled:opacity-50 cursor-pointer"
-            >
-              {isEditMode ? "Lưu riêng tư" : "Lưu bản nháp"}
-            </button>
+            {!(isEditMode && user?.role === "admin") && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => handlePublish(false)}
+                className="px-5 py-2.5 border border-[#4648d4] text-[#4648d4] hover:bg-purple-50/50 rounded-full font-bold text-xs transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isEditMode ? "Lưu riêng tư" : "Lưu bản nháp"}
+              </button>
+            )}
             <button
               type="button"
               disabled={submitting}

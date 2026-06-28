@@ -28,7 +28,7 @@ export default function AdminSettings() {
       setFormData(res.data.data);
     } catch (error) {
       console.error("Failed to fetch system config:", error);
-      toast.error("Không thể tải cấu hình hệ thống");
+      toast.error("Failed to load system configuration");
     } finally {
       setLoading(false);
     }
@@ -48,21 +48,21 @@ export default function AdminSettings() {
 
   const handleDiscard = () => {
     setFormData(config);
-    toast.success("Đã hoàn tác các thay đổi chưa lưu");
+    toast.success("Discarded unsaved changes");
   };
 
   const handleSave = async () => {
     if (!formData) return;
     try {
       setSaving(true);
-      toast.loading("Đang lưu cấu hình...", { id: "save" });
+      toast.loading("Saving configuration...", { id: "save" });
       const res = await updateSystemConfig(formData);
       setConfig(res.data.data);
       setFormData(res.data.data);
-      toast.success("Đã cập nhật cấu hình hệ thống thành công!", { id: "save" });
+      toast.success("System configuration updated successfully!", { id: "save" });
     } catch (error) {
       console.error("Failed to save config:", error);
-      toast.error("Lưu cấu hình thất bại", { id: "save" });
+      toast.error("Failed to save configuration", { id: "save" });
     } finally {
       setSaving(false);
     }
@@ -73,7 +73,7 @@ export default function AdminSettings() {
       <div className="flex h-full w-full items-center justify-center py-24">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" />
-          <p className="text-sm font-medium text-slate-500">Đang tải cấu hình hệ thống...</p>
+          <p className="text-sm font-medium text-slate-500">Loading system settings...</p>
         </div>
       </div>
     );
@@ -84,9 +84,9 @@ export default function AdminSettings() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[#0b1c30]">Cấu hình Hệ thống</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-[#0b1c30]">System Configuration</h2>
           <p className="text-slate-500 text-sm mt-1">
-            Điều chỉnh cài đặt vận hành, chính sách bảo mật, thuật toán SRS và nguyên tắc kiểm duyệt AI.
+            Adjust operational settings, security policies, SRS algorithm, and AI moderation guidelines.
           </p>
         </div>
         
@@ -96,7 +96,7 @@ export default function AdminSettings() {
             disabled={saving}
             className="px-4 py-2 rounded-xl font-semibold text-[#1000a3] hover:bg-[#1000a3]/5 transition-colors border border-transparent disabled:opacity-50"
           >
-            Hủy thay đổi
+            Discard Changes
           </button>
           
           <button 
@@ -109,7 +109,7 @@ export default function AdminSettings() {
             ) : (
               <Save className="w-4 h-4" />
             )}
-            Lưu Cấu hình
+            Save Configuration
           </button>
         </div>
       </div>
@@ -128,18 +128,18 @@ export default function AdminSettings() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-[#0b1c30] flex items-center gap-3">
-                  Chế độ Bảo trì (Maintenance Mode)
+                  Maintenance Mode
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                     formData?.maintenanceMode 
                       ? 'bg-[#ffdad6] text-[#93000a] border-[#ffb59f]' 
                       : 'bg-emerald-100 text-emerald-800 border-emerald-200'
                   }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${formData?.maintenanceMode ? 'bg-[#ba1a1a] animate-ping' : 'bg-emerald-500'}`} />
-                    {formData?.maintenanceMode ? 'Đang bảo trì' : 'Hệ thống Hoạt động'}
+                    {formData?.maintenanceMode ? 'Maintenance Active' : 'System Active'}
                   </span>
                 </h3>
                 <p className="text-slate-500 text-xs md:text-sm mt-1 max-w-2xl">
-                  Khi kích hoạt chế độ bảo trì, tất cả phiên kết nối của người dùng thường sẽ bị chặn. Hệ thống sẽ hiển thị màn hình thông báo nâng cấp. Chỉ tài khoản Admin mới có quyền truy cập API.
+                  When maintenance mode is active, normal user logins and requests will be blocked. The system will display an upgrade screen. Only Admin accounts will have API access.
                 </p>
               </div>
             </div>
@@ -174,7 +174,7 @@ export default function AdminSettings() {
               <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="font-bold text-[#0b1c30] flex items-center gap-2 text-base">
                   <Settings2 className="w-5 h-5 text-[#1000a3]" />
-                  Tích hợp Dịch vụ API
+                  API Integrations
                 </h3>
               </div>
               
@@ -184,9 +184,9 @@ export default function AdminSettings() {
                   <div>
                     <h4 className="font-semibold text-sm text-[#0b1c30] flex items-center gap-2">
                       <Mail className="w-4 h-4 text-slate-400" />
-                      Hệ thống Gửi Email (SendGrid)
+                      Email Mailer (SendGrid)
                     </h4>
-                    <p className="text-xs text-slate-400 mt-0.5">Kích hoạt gửi thư xác nhận tài khoản và nhắc nhở ôn tập học tập.</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Enable email verification and study reminders.</p>
                   </div>
                   <button
                     onClick={() => handleChange("mailerActive", !formData?.mailerActive)}
@@ -209,9 +209,9 @@ export default function AdminSettings() {
                   <div>
                     <h4 className="font-semibold text-sm text-[#0b1c30] flex items-center gap-2">
                       <HardDrive className="w-4 h-4 text-slate-400" />
-                      Lưu trữ Ảnh (Cloudinary Media)
+                      Storage CDN (Cloudinary)
                     </h4>
-                    <p className="text-xs text-slate-400 mt-0.5">Kích hoạt upload ảnh bìa bộ từ vựng và minh họa từ lên máy chủ CDN.</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Enable cover image uploads and vocabulary attachments via Cloudinary CDN.</p>
                   </div>
                   <button
                     onClick={() => handleChange("cloudinaryActive", !formData?.cloudinaryActive)}
@@ -235,7 +235,7 @@ export default function AdminSettings() {
               <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="font-bold text-[#0b1c30] flex items-center gap-2 text-base">
                   <ShieldCheck className="w-5 h-5 text-[#8127cf]" />
-                  Chính sách Bảo mật & Xác thực
+                  Security & Auth Policy
                 </h3>
               </div>
 
@@ -243,31 +243,31 @@ export default function AdminSettings() {
                 <div className="grid grid-cols-2 gap-4">
                   {/* Select OTP */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Độ dài mã OTP</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">OTP Length</label>
                     <select
                       value={formData?.otpLength}
                       onChange={(e) => handleChange("otpLength", Number(e.target.value))}
                       className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:ring-2 focus:ring-[#1000a3]"
                     >
-                      <option value="4">4 số (Ngắn)</option>
-                      <option value="6">6 số (Khuyên dùng)</option>
-                      <option value="8">8 số (Bảo mật cao)</option>
+                      <option value="4">4 Digits (Short)</option>
+                      <option value="6">6 Digits (Recommended)</option>
+                      <option value="8">8 Digits (High Security)</option>
                     </select>
                   </div>
 
                   {/* Select Token Expiry */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Thời hạn Access Token</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Access Token Expiry</label>
                     <select
                       value={formData?.sessionExpiry}
                       onChange={(e) => handleChange("sessionExpiry", e.target.value)}
                       className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:ring-2 focus:ring-[#1000a3]"
                     >
-                      <option value="1h">1 giờ</option>
-                      <option value="4h">4 giờ</option>
-                      <option value="12h">12 giờ</option>
-                      <option value="24h">24 giờ (Khuyên dùng)</option>
-                      <option value="7d">7 ngày</option>
+                      <option value="1h">1 hour</option>
+                      <option value="4h">4 hours</option>
+                      <option value="12h">12 hours</option>
+                      <option value="24h">24 hours (Recommended)</option>
+                      <option value="7d">7 days</option>
                     </select>
                   </div>
                 </div>
@@ -282,8 +282,8 @@ export default function AdminSettings() {
                     className="w-4 h-4 text-[#1000a3] bg-white border-slate-300 rounded focus:ring-[#1000a3] focus:ring-2 cursor-pointer mt-0.5"
                   />
                   <label htmlFor="enforceMfaAdmin" className="cursor-pointer">
-                    <span className="text-sm font-semibold text-[#0b1c30] block">Cưỡng chế xác thực MFA cho Admin</span>
-                    <span className="text-[11px] text-slate-400 block mt-0.5">Yêu cầu bảo mật cấp cao đối với tất cả các thao tác liên quan tới quản trị viên.</span>
+                    <span className="text-sm font-semibold text-[#0b1c30] block">Enforce Admin MFA</span>
+                    <span className="text-[11px] text-slate-400 block mt-0.5">Require multi-factor authentication (MFA) for administrative roles.</span>
                   </label>
                 </div>
               </div>
@@ -299,7 +299,7 @@ export default function AdminSettings() {
               <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="font-bold text-[#0b1c30] flex items-center gap-2 text-base">
                   <Sliders className="w-5 h-5 text-[#ff9675]" />
-                  Tham số Thuật toán SRS
+                  SRS Algorithm Parameters
                 </h3>
               </div>
 
@@ -307,11 +307,11 @@ export default function AdminSettings() {
                 {/* Slider 1: Global Retention Target */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
-                    <span className="text-sm font-semibold text-[#0b1c30]">Mục tiêu Ghi nhớ (Global Retention Target)</span>
+                    <span className="text-sm font-semibold text-[#0b1c30]">Global Retention Target</span>
                     <strong className="text-lg font-extrabold text-[#1000a3]">{formData?.srsGlobalRetentionTarget}%</strong>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Xác suất mong muốn người học nhớ từ khi ôn tập. Tăng giá trị này sẽ khiến lịch trình ôn tập dày hơn.
+                    Desired retention probability when reviewing cards. Increasing this enforces shorter intervals.
                   </p>
                   <div className="pt-2">
                     <input 
@@ -323,8 +323,8 @@ export default function AdminSettings() {
                       className="w-full h-1.5 bg-[#e1e0ff] rounded-lg appearance-none cursor-pointer accent-[#1000a3]"
                     />
                     <div className="flex justify-between text-[10px] text-slate-400 font-semibold mt-1">
-                      <span>70% (Lỏng lẻo)</span>
-                      <span>95% (Nghiêm ngặt)</span>
+                      <span>70% (Loose)</span>
+                      <span>95% (Strict)</span>
                     </div>
                   </div>
                 </div>
@@ -334,11 +334,11 @@ export default function AdminSettings() {
                 {/* Slider 2: Initial Interval */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
-                    <span className="text-sm font-semibold text-[#0b1c30]">Khoảng ôn tập ban đầu (Initial Interval)</span>
-                    <strong className="text-lg font-extrabold text-[#1000a3]">{formData?.srsInitialInterval} giờ</strong>
+                    <span className="text-sm font-semibold text-[#0b1c30]">Initial Interval</span>
+                    <strong className="text-lg font-extrabold text-[#1000a3]">{formData?.srsInitialInterval} hours</strong>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Khoảng thời gian chờ cơ bản trước đợt ôn tập đầu tiên sau khi học xong từ mới.
+                    The baseline hours wait time for the first review session after learning a vocabulary card.
                   </p>
                   <div className="pt-2">
                     <input 
@@ -351,9 +351,9 @@ export default function AdminSettings() {
                       className="w-full h-1.5 bg-[#e1e0ff] rounded-lg appearance-none cursor-pointer accent-[#1000a3]"
                     />
                     <div className="flex justify-between text-[10px] text-slate-400 font-semibold mt-1">
-                      <span>4 giờ</span>
-                      <span>24 giờ (Mặc định)</span>
-                      <span>48 giờ</span>
+                      <span>4 hours</span>
+                      <span>24 hours (Default)</span>
+                      <span>48 hours</span>
                     </div>
                   </div>
                 </div>
@@ -366,7 +366,7 @@ export default function AdminSettings() {
               <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="font-bold text-[#0b1c30] flex items-center gap-2 text-base">
                   <Brain className="w-5 h-5 text-[#2c2abc]" />
-                  Chính sách Kiểm duyệt Tự động (AI)
+                  AI Auto-Moderation Policy
                 </h3>
               </div>
 
@@ -374,11 +374,11 @@ export default function AdminSettings() {
                 {/* Moderation Interval Hours */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
-                    <span className="text-sm font-semibold text-[#0b1c30]">Chu kỳ chạy kiểm duyệt AI</span>
-                    <strong className="text-lg font-extrabold text-[#1000a3]">{formData?.moderationInterval} giờ / lần</strong>
+                    <span className="text-sm font-semibold text-[#0b1c30]">AI Moderation Scan Cycle</span>
+                    <strong className="text-lg font-extrabold text-[#1000a3]">{formData?.moderationInterval} hours</strong>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Hệ thống sẽ gom batch tất cả các bộ từ công khai pending và quét AI định kỳ mỗi X giờ.
+                    Batch moderates pending sets and user posts via Google Gemini AI API every X hours.
                   </p>
                   <div className="pt-2">
                     <input 
@@ -390,9 +390,9 @@ export default function AdminSettings() {
                       className="w-full h-1.5 bg-[#e1e0ff] rounded-lg appearance-none cursor-pointer accent-[#1000a3]"
                     />
                     <div className="flex justify-between text-[10px] text-slate-400 font-semibold mt-1">
-                      <span>1 giờ</span>
-                      <span>3 giờ (Khuyên dùng)</span>
-                      <span>24 giờ</span>
+                      <span>1 hour</span>
+                      <span>3 hours (Recommended)</span>
+                      <span>24 hours</span>
                     </div>
                   </div>
                 </div>
@@ -401,7 +401,7 @@ export default function AdminSettings() {
                 <div className="p-4 bg-blue-50/50 border border-blue-200/50 rounded-xl flex gap-3 text-xs text-blue-800">
                   <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
                   <p className="leading-relaxed">
-                    Thay đổi chu kỳ sẽ lập tức lên lịch lại background worker BullMQ của hệ thống ở chế độ thời gian thực.
+                    Modifying the cycle immediately schedules the BullMQ background worker cron process in real-time.
                   </p>
                 </div>
               </div>
@@ -415,12 +415,12 @@ export default function AdminSettings() {
           <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
             <h3 className="font-bold text-[#0b1c30] flex items-center gap-2 text-base">
               <Brain className="w-5 h-5 text-[#1000a3]" />
-              Nguyên tắc chỉ dẫn kiểm duyệt AI (System Prompt Guidelines)
+              AI System Prompt Guidelines
             </h3>
           </div>
           <div className="p-6 space-y-4">
             <p className="text-slate-500 text-xs leading-relaxed">
-              Nhập các chỉ thị nghiêm ngặt để ép Gemini API kiểm duyệt. Nội dung này sẽ được chèn trực tiếp vào prompt hệ thống của AI để đảm bảo tiêu chuẩn an toàn cho cộng đồng học tiếng Anh.
+              Define safety rules and compliance directives to instruct Gemini API for auto-moderation. This configuration is injected as the system prompt to moderate public content.
             </p>
             <textarea
               value={formData?.aiModerationGuidelines}
