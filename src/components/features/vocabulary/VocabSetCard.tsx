@@ -9,6 +9,7 @@ export interface VocabSetCardProps {
   category: string;
   level: string;
   mastery: number;
+  showMastery?: boolean;
   colorTheme?: "blue" | "emerald" | "amber" | "purple" | "rose" | "cyan";
   onClick?: () => void;
   onEditSet?: () => void;
@@ -67,6 +68,7 @@ export default function VocabSetCard({
   category,
   level,
   mastery,
+  showMastery = true,
   colorTheme = "blue",
   onClick,
   onEditSet,
@@ -163,21 +165,23 @@ export default function VocabSetCard({
         </span>
       </div>
 
-      <div>
-        <div className="flex justify-between text-xs font-bold mb-2">
-          <span className="text-slate-500">Mastery Progress</span>
-          <span className={styles.text}>{mastery}%</span>
-        </div>
-        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-          <div
-            className={cn("h-full rounded-full relative transition-all duration-1000", styles.bg)}
-            style={{ width: `${mastery}%` }}
-          >
-            {/* Glossy effect for progress bar */}
-            <div className="absolute inset-0 bg-white/20"></div>
+      {showMastery && (
+        <div>
+          <div className="flex justify-between text-xs font-bold mb-2">
+            <span className="text-slate-500">Mastery Progress</span>
+            <span className={styles.text}>{mastery}%</span>
+          </div>
+          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className={cn("h-full rounded-full relative transition-all duration-1000", styles.bg)}
+              style={{ width: `${mastery}%` }}
+            >
+              {/* Glossy effect for progress bar */}
+              <div className="absolute inset-0 bg-white/20"></div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

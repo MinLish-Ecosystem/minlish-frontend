@@ -14,7 +14,7 @@ export default function Statistics() {
   const [dailyStats, setDailyStats] = useState<DailyStat[]>([]);
   const [heatmapData, setHeatmapData] = useState<HeatmapStat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<"today" | "7days" | "30days">("30days");
+  const [timeRange, setTimeRange] = useState<"today" | "7days" | "30days" | "all">("30days");
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; val: number; date: string } | null>(null);
 
   useEffect(() => {
@@ -24,9 +24,11 @@ export default function Statistics() {
   const loadStatistics = async () => {
     try {
       setLoading(true);
+      const daysParam = timeRange === "today" ? 1 : timeRange === "7days" ? 7 : timeRange === "30days" ? 30 : undefined;
+      const dailyDaysParam = timeRange === "today" ? 1 : timeRange === "7days" ? 7 : timeRange === "30days" ? 30 : 3650;
       const [dashRes, dailyRes, heatmapRes] = await Promise.all([
-        getDashboardStats(),
-        getDailyStats(timeRange === "today" ? 1 : timeRange === "7days" ? 7 : 30),
+        getDashboardStats(daysParam),
+        getDailyStats(dailyDaysParam),
         getHeatmapStats()
       ]);
 
@@ -101,8 +103,8 @@ export default function Statistics() {
   
   const areaPath = linePath ? `${linePath} L100,100 L0,100 Z` : "";
 
-  // Process Heatmap Data (91 Days = 13 weeks)
-  const heatmapDaysCount = 91;
+  // Process Heatmap Data (52 weeks = 364 days — full year, auto-fills card width)
+  const heatmapDaysCount = 364;
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - heatmapDaysCount + 1);
@@ -197,6 +199,16 @@ export default function Statistics() {
             >
               Last 30 Days
             </button>
+            <button 
+              onClick={() => setTimeRange("all")}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                timeRange === "all" 
+                  ? "bg-purple-600 text-white shadow-md shadow-purple-100" 
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              All Time
+            </button>
           </div>
 
           <div className="relative">
@@ -206,7 +218,8 @@ export default function Statistics() {
             <div className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 min-w-48 select-none">
               {timeRange === "today" ? "Today's statistics" : 
                timeRange === "7days" ? "Last 7 learning days" : 
-               "Last 30 learning days"}
+               timeRange === "30days" ? "Last 30 learning days" :
+               "All-time statistics"}
             </div>
           </div>
 
@@ -302,9 +315,9 @@ export default function Statistics() {
         </div>
       </div>
 
-      {/* Grid Layout for Charts: Row 1 */}
+      {/* Charts Row: Vocabulary Activity + Accuracy Rate */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart: Vocabulary Growth */}
+        {/* Vocabulary Activity — 2/3 width */}
         <div className="lg:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-[400px] overflow-hidden">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -313,14 +326,12 @@ export default function Statistics() {
             </div>
           </div>
           
-          {/* Dynamic SVG Graph */}
           {dailyStats.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
               No daily stats data available for this range.
             </div>
           ) : (
             <div className="flex-1 relative w-full flex flex-col mt-2">
-              {/* Y-Axis Labels */}
               <div className="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-[10px] text-slate-400 font-bold z-10">
                 <span>{maxVal}</span>
                 <span>{Math.round(maxVal * 0.75)}</span>
@@ -329,7 +340,6 @@ export default function Statistics() {
                 <span>0</span>
               </div>
               
-              {/* Grid Lines */}
               <div className="absolute left-8 right-0 top-1 bottom-8 flex flex-col justify-between pointer-events-none z-0">
                 <div className="w-full border-t border-slate-100 border-dashed"></div>
                 <div className="w-full border-t border-slate-100 border-dashed"></div>
@@ -338,7 +348,6 @@ export default function Statistics() {
                 <div className="w-full border-t border-slate-200"></div>
               </div>
               
-              {/* Line & Area Chart Canvas */}
               <div className="absolute inset-0 left-8 bottom-8 overflow-visible z-10">
                 <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                   <defs>
@@ -347,19 +356,10 @@ export default function Statistics() {
                       <stop offset="100%" stopColor="#4648d4" stopOpacity="0"></stop>
                     </linearGradient>
                   </defs>
-                  
-                  {/* Fill Area */}
-                  {areaPath && (
-                    <path d={areaPath} fill="url(#chartGrad)"></path>
-                  )}
-                  
-                  {/* Stroke Line */}
-                  {linePath && (
-                    <path d={linePath} fill="none" stroke="#4648d4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"></path>
-                  )}
+                  {areaPath && <path d={areaPath} fill="url(#chartGrad)"></path>}
+                  {linePath && <path d={linePath} fill="none" stroke="#4648d4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"></path>}
                 </svg>
 
-                {/* Data point markers and hover states */}
                 {linePoints.map((pt, idx) => (
                   <div
                     key={idx}
@@ -370,7 +370,6 @@ export default function Statistics() {
                   />
                 ))}
 
-                {/* Tooltip */}
                 {hoveredPoint && (
                   <div 
                     className="absolute bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg shadow-xl transform -translate-x-1/2 -translate-y-full z-30 pointer-events-none transition-all duration-150"
@@ -383,7 +382,6 @@ export default function Statistics() {
                 )}
               </div>
 
-              {/* X-Axis Labels */}
               <div className="absolute left-8 right-0 bottom-0 flex justify-between text-[10px] text-slate-400 font-bold px-1 z-10 select-none">
                 <span>{dailyStats[0]?.date ? new Date(dailyStats[0].date).toLocaleDateString("en-US", {month:"short", day:"numeric"}) : "Start"}</span>
                 <span>{dailyStats[Math.floor(dailyStats.length/2)]?.date ? new Date(dailyStats[Math.floor(dailyStats.length/2)].date).toLocaleDateString("en-US", {month:"short", day:"numeric"}) : "Mid"}</span>
@@ -393,7 +391,7 @@ export default function Statistics() {
           )}
         </div>
 
-        {/* Donut Chart: Accuracy Rate */}
+        {/* Accuracy Rate — 1/3 width */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-[400px]">
           <h3 className="text-lg font-bold text-slate-800 mb-1">Accuracy Rate</h3>
           <p className="text-xs text-slate-400 mb-6">Overall performance in SRS study reviews</p>
@@ -401,33 +399,12 @@ export default function Statistics() {
           <div className="flex-1 flex flex-col items-center justify-center relative">
             <div className="relative w-44 h-44">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                {/* Background Circle */}
-                <path 
-                  className="text-slate-100" 
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="3.5"
-                ></path>
-                {/* Foreground Accuracy Circle */}
-                <path 
-                  className="text-purple-600" 
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeDasharray={`${dashboardData.overallAccuracy}, 100`}
-                  strokeLinecap="round" 
-                  strokeWidth="3.5"
-                ></path>
+                <path className="text-slate-100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3.5"></path>
+                <path className="text-purple-600" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeDasharray={`${dashboardData.overallAccuracy}, 100`} strokeLinecap="round" strokeWidth="3.5"></path>
               </svg>
-              
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-extrabold text-slate-800 leading-none">
-                  {dashboardData.overallAccuracy}%
-                </span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mt-2">
-                  Excellent
-                </span>
+                <span className="text-4xl font-extrabold text-slate-800 leading-none">{dashboardData.overallAccuracy}%</span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mt-2">Excellent</span>
               </div>
             </div>
           </div>
@@ -443,61 +420,122 @@ export default function Statistics() {
             <div className="flex items-center justify-between text-xs font-bold">
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
-                <span className="text-slate-500">Overall Reviews</span>
+                <span className="text-slate-500">Words Learned</span>
               </div>
-              <span className="text-slate-800">{dashboardData.totalReviews} words</span>
+              <span className="text-slate-800">{dashboardData.totalWordsLearned} words</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Grid Layout for Charts: Row 2 */}
-      <div className="grid grid-cols-1 gap-6">
-        {/* Daily Activity Heatmap */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col">
-          <h3 className="text-lg font-bold text-slate-800 mb-1">Daily Activity Heatmap</h3>
-          <p className="text-xs text-slate-400 mb-6">Review contributions over the last 90 days</p>
-          
-          <div className="flex-1 overflow-x-auto">
-            {/* contribution grid */}
-            <div className="flex gap-1.5 min-w-[700px] justify-between pb-2 select-none">
-              {weeks.map((week, weekIdx) => (
-                <div key={weekIdx} className="flex flex-col gap-1.5">
-                  {week.map((day, dayIdx) => {
-                    const count = day.count;
-                    let bgClass = "bg-slate-100 hover:bg-slate-200"; // default empty
-                    if (count > 20) bgClass = "bg-purple-700 hover:bg-purple-800";
-                    else if (count > 10) bgClass = "bg-purple-500 hover:bg-purple-600";
-                    else if (count > 0) bgClass = "bg-purple-200 hover:bg-purple-300";
-                    
-                    return (
-                      <div
-                        key={day.dateStr}
-                        className={`w-3.5 h-3.5 rounded-sm ${bgClass} cursor-pointer transition-all duration-150 relative group/tile`}
-                        title={`${new Date(day.dateStr).toLocaleDateString()}: ${count} reviews`}
-                      >
-                        {/* Custom visual tooltip inside the container */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-slate-800 text-white text-[9px] font-bold py-1 px-2 rounded-md shadow-lg opacity-0 pointer-events-none group-hover/tile:opacity-100 transition-opacity whitespace-nowrap z-50">
-                          {count} reviews on {new Date(day.dateStr).toLocaleDateString()}
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -translate-y-[2px] border-4 border-transparent border-t-slate-800"></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+      {/* Daily Activity Heatmap — Full Width at bottom */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 mb-0.5">Daily Activity</h3>
+            <p className="text-xs text-slate-400">
+              {heatmapData.reduce((s, h) => s + (h.count || 0), 0).toLocaleString()} reviews in the last year
+            </p>
           </div>
-          
-          {/* Heatmap Legend */}
-          <div className="flex items-center justify-end gap-2 mt-4 text-[10px] text-slate-400 font-bold select-none">
+          <div className="flex items-center gap-1 text-[10px] text-slate-400 font-semibold select-none">
             <span>Less</span>
-            <div className="w-3.5 h-3.5 rounded-sm bg-slate-100 border border-slate-200"></div>
-            <div className="w-3.5 h-3.5 rounded-sm bg-purple-200"></div>
-            <div className="w-3.5 h-3.5 rounded-sm bg-purple-500"></div>
-            <div className="w-3.5 h-3.5 rounded-sm bg-purple-700"></div>
+            {["bg-slate-100 border border-slate-200", "bg-purple-100", "bg-purple-300", "bg-purple-500", "bg-purple-700"].map((cls, i) => (
+              <div key={i} className={`w-[11px] h-[11px] rounded-[2px] ${cls}`}></div>
+            ))}
             <span>More</span>
           </div>
+        </div>
+
+        {/* Month Labels */}
+        <div className="relative h-4 mb-1 select-none" style={{ marginLeft: 28 }}>
+          {(() => {
+            const monthLabels: { label: string; weekIndex: number }[] = [];
+            let lastMonth = -1;
+            weeks.forEach((week, weekIdx) => {
+              const d = new Date(week[0].dateStr);
+              const m = d.getMonth();
+              if (m !== lastMonth) {
+                monthLabels.push({ label: d.toLocaleDateString("en-US", { month: "short" }), weekIndex: weekIdx });
+                lastMonth = m;
+              }
+            });
+            return monthLabels.map((ml, i) => (
+              <span
+                key={i}
+                className="absolute text-[10px] font-medium text-slate-400"
+                style={{ left: `${(ml.weekIndex / weeks.length) * 100}%` }}
+              >
+                {ml.label}
+              </span>
+            ));
+          })()}
+        </div>
+
+        {/* Heatmap Grid — CSS Grid auto-fills width */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `24px repeat(${weeks.length}, 1fr)`,
+            gap: 3,
+          }}
+        >
+          {/* Day-of-week labels (column 1, rows 1-7) */}
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, i) => (
+            <div
+              key={`label-${i}`}
+              className="flex items-center"
+              style={{ gridColumn: 1, gridRow: i + 1 }}
+            >
+              <span className="text-[9px] font-medium text-slate-300">
+                {i % 2 === 1 ? label : ""}
+              </span>
+            </div>
+          ))}
+
+          {/* Contribution cells (columns 2+, rows 1-7) */}
+          {weeks.flatMap((week, weekIdx) =>
+            week.map((day, dayIdx) => {
+              const count = day.count;
+              let bg = "bg-slate-100";
+              if (count > 20) bg = "bg-purple-700";
+              else if (count > 10) bg = "bg-purple-500";
+              else if (count > 5) bg = "bg-purple-300";
+              else if (count > 0) bg = "bg-purple-100";
+
+              return (
+                <div
+                  key={day.dateStr}
+                  className={`aspect-square rounded-[2px] ${bg} cursor-pointer transition-colors duration-100 relative group/tile`}
+                  style={{ gridColumn: weekIdx + 2, gridRow: dayIdx + 1 }}
+                >
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 -translate-y-1 bg-slate-800 text-white text-[9px] font-semibold py-1 px-2 rounded-md shadow-lg opacity-0 pointer-events-none group-hover/tile:opacity-100 transition-opacity whitespace-nowrap z-50">
+                    {count > 0 ? `${count} reviews` : "No activity"} · {new Date(day.dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 -translate-y-[2px] border-4 border-transparent border-t-slate-800"></div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-50">
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              <span className="text-xs font-semibold text-slate-500">
+                {heatmapData.filter(h => h.count > 0).length} active days
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+              <span className="text-xs font-semibold text-slate-500">
+                {dashboardData.streak.current} day streak
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] text-slate-300 font-medium">Last 12 months</span>
         </div>
       </div>
     </div>

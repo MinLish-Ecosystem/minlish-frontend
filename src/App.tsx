@@ -34,6 +34,8 @@ const AdminCreateEditVocabSet = lazy(() => import("./pages/admin/AdminCreateEdit
 const Community = lazy(() => import("./pages/community/Community"));
 const CommunityPostDetail = lazy(() => import("./pages/community/CommunityPostDetail"));
 const CommunityEditor = lazy(() => import("./pages/community/CommunityEditor"));
+const MyContentManager = lazy(() => import("./pages/community/MyContentManager"));
+const AdminCommunityPosts = lazy(() => import("./pages/admin/AdminCommunityPosts"));
 const Statistics = lazy(() => import("./pages/statistics/Statistics"));
 
 // Vocabulary
@@ -248,6 +250,14 @@ export default function App() {
               }
             />
             <Route
+              path="/my-content"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <MyContentManager />
+                </Suspense>
+              }
+            />
+            <Route
               path="/practice"
               element={
                 <Suspense fallback={<PageLoader />}>
@@ -335,6 +345,22 @@ export default function App() {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <AdminCreateEditVocabSet />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/posts"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminCommunityPosts />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/notifications"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <NotificationsPage />
                 </Suspense>
               }
             />

@@ -4,10 +4,12 @@ import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-hot-toast";
 import { extractFieldErrors, getErrorMessage, FieldErrors } from "../../lib/formErrors";
 import { getProfile, updateProfile, requestEmailChange, confirmEmailChange, getLearningProfile, updateLearningProfile, LearningProfile } from "../../api/user.api";
+import { ConfirmLogoutModal } from "../../components/common";
 
 export default function Settings() {
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const pendingUpdatesRef = useRef<Partial<LearningProfile>>({});
   const debounceTimerRef = useRef<any>(null);
@@ -228,6 +230,10 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
     logout();
     navigate("/login");
   };
@@ -615,6 +621,12 @@ export default function Settings() {
           </section>
         </div>
       </div>
+
+      <ConfirmLogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ export type SortBy        = 'newest' | 'oldest' | 'popular' | 'alphabetical';
 
 export interface VocabSet {
   id: string;
+  userId?: string;
   name: string;
   description?: string;
   coverUrl?: string;
@@ -19,6 +20,8 @@ export interface VocabSet {
   colorTheme: ColorTheme;
   tags: string[];
   isPublic: boolean;
+  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  moderationReason?: string;
   totalWords: number;
   learnerCount: number;
   clonedFrom?: string;

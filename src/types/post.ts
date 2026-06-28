@@ -22,6 +22,9 @@ export interface Post {
   commentCount: number;
   isLiked: boolean;
   isBookmarked: boolean;
+  isPublic: boolean;
+  moderationStatus: 'pending' | 'approved' | 'rejected';
+  moderationReason: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,6 +49,7 @@ export interface CreatePostPayload {
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
   coverImage?: string;
   isFeatured?: boolean;
+  isPublic?: boolean;
 }
 
 export interface PostFilters {

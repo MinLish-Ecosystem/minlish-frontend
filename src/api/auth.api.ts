@@ -35,3 +35,6 @@ export const refreshToken = (refreshToken: string) =>
     "/api/v1/auth/refresh-token",
     { refreshToken },
   );
+
+export const verifyMfaLoginApi = (payload: { email: string; otp: string }) =>
+  api.post<ApiResponse<LoginResponse>>("/api/v1/auth/verify-mfa", payload);

@@ -400,14 +400,42 @@ export default function FlashcardSession() {
           setCards(vocabWords.map((w) => ({ word: w, isFlipped: false })));
           setIsCustomPractice(false);
         } else {
-          // Fallback to most recent set
-          const setsRes = await api.get("/api/v1/vocab/sets?limit=1");
-          const recentSet = setsRes.data.data?.[0];
-          if (recentSet) {
-            const detailRes = await dispatch(fetchSetDetail(recentSet.id)).unwrap();
-            const allWords = detailRes.words || [];
+          // Fallback: Lấy tất cả từ vựng của tất cả các bộ từ trong thư viện cá nhân
+          const setsRes = await api.get("/api/v1/vocab/sets?limit=100");
+          const userSets = setsRes.data.data || [];
+          if (userSets.length > 0) {
+            const promises = userSets.map((s: any) => api.get(`/api/v1/vocab/sets/${s.id}/words`));
+            const responses = await Promise.all(promises);
+            const allWords = responses.flatMap((r) => r.data.data || []);
+
             if (allWords.length > 0) {
-              setCards(allWords.map((w: any) => ({ word: w, isFlipped: false })));
+              // Loại bỏ trùng lặp từ vựng theo chữ thường
+              const seen = new Set();
+              const uniqueWords = allWords.filter((w: any) => {
+                const lower = w.word.toLowerCase();
+                if (seen.has(lower)) return false;
+                seen.add(lower);
+                return true;
+              });
+
+              const vocabWords: VocabWord[] = uniqueWords.map((w: any) => ({
+                id: w.id || w._id,
+                setId: w.setId || "",
+                word: w.word,
+                pronunciation: w.pronunciation || "",
+                partOfSpeech: w.partOfSpeech || "noun",
+                meaning: w.meaning,
+                examples: w.examples || [],
+                audioUrl: w.audioUrl || "",
+                imageUrl: w.imageUrl || "",
+                descriptionEN: w.descriptionEN || "",
+                synonyms: w.synonyms || [],
+                antonyms: w.antonyms || [],
+                collocations: w.collocations || [],
+                note: w.note || ""
+              }));
+
+              setCards(vocabWords.map((w) => ({ word: w, isFlipped: false })));
               setIsCustomPractice(true);
             } else {
               setCards([]);
@@ -448,30 +476,26 @@ export default function FlashcardSession() {
       // Update stats
       setStats((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
 
-      // Buffer review if not custom practice
-      if (!isCustomPractice) {
-        const word = currentCard.word;
-        const timeSpent = Math.max(1, Math.round((Date.now() - cardStartTimeRef.current) / 1000));
-        const newReview: PendingReview = {
-          wordId: word.id,
-          setId: word.setId || setId || "",
-          rating,
-          timeSpent,
-          reviewedAt: new Date().toISOString()
-        };
+      // Buffer review (always sync progress even in custom/practice mode)
+      const word = currentCard.word;
+      const timeSpent = Math.max(1, Math.round((Date.now() - cardStartTimeRef.current) / 1000));
+      const newReview: PendingReview = {
+        wordId: word.id,
+        setId: word.setId || setId || "",
+        rating,
+        timeSpent,
+        reviewedAt: new Date().toISOString()
+      };
 
-        pendingReviewsRef.current.push(newReview);
-        savePendingToStorage(pendingReviewsRef.current);
-      }
+      pendingReviewsRef.current.push(newReview);
+      savePendingToStorage(pendingReviewsRef.current);
 
       // Animate card exit
       setTimeout(async () => {
         if (currentIndex + 1 >= totalCards) {
           setSessionDone(true);
           // Sync all reviews on session completion
-          if (!isCustomPractice) {
-            await syncPendingReviews();
-          }
+          await syncPendingReviews();
         } else {
           setCurrentIndex((i) => i + 1);
           setIsFlipped(false);
@@ -502,8 +526,8 @@ export default function FlashcardSession() {
 
   // ── Exit ──
   const handleExit = async () => {
-    if (!isCustomPractice && pendingReviewsRef.current.length > 0) {
-      const toastId = toast.loading("Syncing progress with server...");
+    if (pendingReviewsRef.current.length > 0) {
+      const toastId = toast.loading("Đang đồng bộ tiến độ học tập...");
       await syncPendingReviews();
       toast.dismiss(toastId);
     }
@@ -544,16 +568,28 @@ export default function FlashcardSession() {
 
   if (cards.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 text-center px-4">
-        <BookOpen className="w-16 h-16 text-slate-200" />
-        <h2 className="text-xl font-bold text-slate-700">No words to study</h2>
-        <p className="text-slate-400 text-sm">Add some words to this set first.</p>
-        <button
-          onClick={handleExit}
-          className="mt-4 px-6 py-2.5 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 transition-colors"
-        >
-          Back to Set
-        </button>
+      <div className="flex h-full flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">
+        <div className="w-16 h-16 rounded-full bg-indigo-50 text-[#4648d4] flex items-center justify-center mb-2">
+          <BookOpen className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800">Tuyệt vời! Bạn đã hoàn thành</h2>
+        <p className="text-slate-500 text-sm max-w-sm leading-relaxed">
+          Bạn đã học hết toàn bộ từ vựng hiện có trong thư viện cá nhân! Hãy khám phá thêm các bộ từ mới từ mục Explore để tiếp tục hành trình học tập.
+        </p>
+        <div className="flex gap-3 mt-2">
+          <button
+            onClick={() => navigate("/explore")}
+            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-md hover:scale-105 transition-all"
+          >
+            Khám phá bộ từ mới
+          </button>
+          <button
+            onClick={handleExit}
+            className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all"
+          >
+            Quay lại
+          </button>
+        </div>
       </div>
     );
   }
@@ -627,8 +663,8 @@ export default function FlashcardSession() {
             <BookOpen className="w-4 h-4" />
           </div>
           <div className="text-left">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800">Practice Mode (Luyện tập tự do)</h4>
-            <p className="text-[11px] text-amber-700/90 mt-0.5 font-medium">Bạn đã hoàn thành mục tiêu học tập hôm nay. Phiên này giúp ôn tập tự do mà không tính điểm SRS và không làm xáo trộn thuật toán.</p>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800">Chế độ Luyện tập tự do</h4>
+            <p className="text-[11px] text-amber-700/90 mt-0.5 font-medium">Bạn đã hoàn thành lịch học bắt buộc hôm nay. Phiên này giúp ôn tập tự do và vẫn tiếp tục cập nhật lịch trình SRS giúp củng cố trí nhớ!</p>
           </div>
         </motion.div>
       )}

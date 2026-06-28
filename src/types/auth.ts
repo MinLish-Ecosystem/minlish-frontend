@@ -6,10 +6,12 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  user: User;
-  accessToken: string;
-  refreshToken: string;
+  user?: User;
+  accessToken?: string;
+  refreshToken?: string;
   redirectUrl?: string;
+  mfaRequired?: boolean;
+  email?: string;
 }
 
 export interface RegisterRequest {

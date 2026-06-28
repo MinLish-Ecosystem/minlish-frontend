@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { Bell, Flame, Trophy, Clock, Info, CheckCheck } from "lucide-react";
 import { RootState, AppDispatch } from "../../store";
+import { useAuth } from "../../hooks/useAuth";
 import {
   fetchNotifications,
   fetchUnreadCount,
@@ -35,6 +36,7 @@ export default function NotificationDropdown() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
+  const { user } = useAuth();
   const { notifications, unreadCount, loading } = useSelector(
     (state: RootState) => state.notification
   );
@@ -93,7 +95,11 @@ export default function NotificationDropdown() {
 
   const handleViewAll = () => {
     setIsOpen(false);
-    navigate("/notifications");
+    if (user?.role === "admin") {
+      navigate("/admin/notifications");
+    } else {
+      navigate("/notifications");
+    }
   };
 
   const getIcon = (type: string) => {

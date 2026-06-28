@@ -13,9 +13,9 @@ import api from "../../lib/api";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 
 export default function AdminVocabularySets() {
-  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { sets, setsLoading: loading } = useSelector((state: RootState) => state.vocab);
+  const [sets, setSets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [activeCategory, setActiveCategory] = useState<VocabCategory | "">("");
   const [showCreate, setShowCreate] = useState(false);
@@ -28,18 +28,36 @@ export default function AdminVocabularySets() {
     colorTheme: "blue" as ColorTheme,
   });
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      dispatch(
-        fetchVocabSets({
+  const fetchSets = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/api/v1/admin/sets', {
+        params: {
           q: q.trim() || undefined,
           category: activeCategory || undefined,
-        })
-      );
+          limit: 100
+        }
+      });
+      if (res.data?.success) {
+        const payload = res.data.data;
+        const setsArray = payload?.data || payload || [];
+        setSets(setsArray);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Không thể tải danh sách bộ từ công khai");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      fetchSets();
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [q, activeCategory, dispatch]);
+  }, [q, activeCategory]);
 
   const handleCreateSet = async () => {
     if (!form.name.trim()) {
@@ -49,30 +67,31 @@ export default function AdminVocabularySets() {
 
     setCreating(true);
     try {
-      const createdSet = await dispatch(
-        createSet({
-          name: form.name.trim(),
-          description: form.description.trim() || undefined,
-          category: form.category,
-          level: form.level,
-          colorTheme: form.colorTheme,
-          isPublic: true, // admin tạo thì luôn là public
-          tags: [],
-        })
-      ).unwrap();
-
-      toast.success("Đã tạo bộ từ công khai!");
-      setShowCreate(false);
-      setForm({
-        name: "",
-        description: "",
-        category: "General",
-        level: "Intermediate",
-        colorTheme: "blue",
+      const res = await api.post("/api/v1/vocab/sets", {
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        category: form.category,
+        level: form.level,
+        colorTheme: form.colorTheme,
+        isPublic: true,
+        tags: [],
       });
-      navigate(`/admin/vocabulary/${createdSet.id}`);
-    } catch {
-      toast.error("Không thể tạo bộ từ. Vui lòng thử lại.");
+
+      if (res.data?.success) {
+        toast.success("Đã tạo bộ từ công khai!");
+        setShowCreate(false);
+        setForm({
+          name: "",
+          description: "",
+          category: "General",
+          level: "Intermediate",
+          colorTheme: "blue",
+        });
+        const createdSet = res.data.data;
+        navigate(`/admin/vocabulary/${createdSet.id || createdSet._id}`);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Không thể tạo bộ từ. Vui lòng thử lại.");
     } finally {
       setCreating(false);
     }
@@ -208,6 +227,7 @@ export default function AdminVocabularySets() {
               category={set.category}
               level={set.level}
               mastery={0}
+              showMastery={false}
               colorTheme={set.colorTheme}
               onClick={() => navigate(`/admin/vocabulary/${set.id}`)}
               onEditSet={() => navigate(`/admin/vocabulary/${set.id}/edit`)}
@@ -216,10 +236,11 @@ export default function AdminVocabularySets() {
                 const ok = window.confirm(`Delete set "${set.name}"? This cannot be undone.`);
                 if (!ok) return;
                 try {
-                  await dispatch(deleteSet(set.id)).unwrap();
-                  toast.success("Set deleted");
+                  await api.delete(`/api/v1/vocab/sets/${set.id}`);
+                  toast.success("Đã xóa bộ từ vựng");
+                  fetchSets();
                 } catch {
-                  toast.error("Failed to delete set. Try again.");
+                  toast.error("Không thể xóa bộ từ vựng. Vui lòng thử lại.");
                 }
               }}
             />

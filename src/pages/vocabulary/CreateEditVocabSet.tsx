@@ -999,7 +999,11 @@ export default function CreateEditVocabSet() {
 
       // Reset dirty flag and redirect
       originalSetRef.current = null; 
-      navigate(`/vocabulary/${savedSetId}`);
+      if (isPublic) {
+        navigate("/my-content?tab=sets");
+      } else {
+        navigate(`/vocabulary/${savedSetId}`);
+      }
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || "Failed to save vocabulary set");

@@ -2,11 +2,25 @@ import React, { useEffect, useCallback, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Search, SlidersHorizontal } from "lucide-react";
-import VocabSetCard from "../../components/features/vocabulary/VocabSetCard";
-import { VocabCategory, VocabLevel, SortBy, fetchPublicSets } from "../../store/slices/vocabSlice";
+import TrendingSetCard from "../../components/features/explore/TrendingSetCard";
+import { VocabCategory, VocabLevel, SortBy, fetchPublicSets, clonePublicSet, fetchVocabSets } from "../../store/slices/vocabSlice";
 import type { RootState } from "../../store";
 import Loading from "../../components/common/Loading";
 import EmptyState from "../../components/common/EmptyState";
+import { useAuth } from "../../hooks/useAuth";
+import toast from "react-hot-toast";
+
+const getBorderColor = (theme: string) => {
+  const colors: Record<string, string> = {
+    blue: "border-blue-500",
+    emerald: "border-emerald-500",
+    amber: "border-amber-500",
+    purple: "border-purple-600",
+    rose: "border-rose-500",
+    cyan: "border-cyan-500",
+  };
+  return colors[theme] || "border-purple-600";
+};
 
 const CATEGORIES: VocabCategory[] = ["General", "Business", "IELTS", "TOEIC", "Travel", "Technology", "Academic", "Psychology", "Science"];
 const LEVELS: VocabLevel[]        = ["Beginner", "Intermediate", "Advanced", "Academic"];
@@ -20,7 +34,8 @@ export default function ExploreAll() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const dispatch = useDispatch();
-  const { publicSets, publicSetsLoading, publicSetsPagination } = useSelector((state: RootState) => state.vocab);
+  const { user } = useAuth();
+  const { publicSets, publicSetsLoading, publicSetsPagination, sets } = useSelector((state: RootState) => state.vocab);
 
   const initialQ = searchParams.get("q") || "";
 
@@ -29,8 +44,23 @@ export default function ExploreAll() {
   const [category, setCategory] = useState<VocabCategory | "">("");
   const [level,    setLevel]    = useState<VocabLevel | "">("");
   const [sortBy,   setSortBy]   = useState<SortBy>("popular");
+  const [ownerFilter, setOwnerFilter] = useState<"all" | "mine" | "others">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    dispatch(fetchVocabSets({}) as any);
+  }, [dispatch]);
+
+  const handleCloneSet = async (setId: string) => {
+    const toastId = toast.loading("Adding set to your library...");
+    try {
+      await dispatch(clonePublicSet(setId) as any).unwrap();
+      toast.success("Added to library successfully!", { id: toastId });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add set", { id: toastId });
+    }
+  };
 
   // Debounce search text updates to update "q" and reset page
   useEffect(() => {
@@ -53,6 +83,12 @@ export default function ExploreAll() {
       }) as any
     );
   }, [q, category, level, sortBy, currentPage, dispatch]);
+
+  const filteredSets = publicSets.filter((set) => {
+    if (ownerFilter === "mine") return set.userId === user?.id;
+    if (ownerFilter === "others") return set.userId !== user?.id;
+    return true;
+  });
 
   return (
     <div className="max-w-[1280px] mx-auto pb-12">
@@ -116,12 +152,26 @@ export default function ExploreAll() {
               {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
 
-            {(category || level || sortBy !== "popular") && (
+            <select
+              value={ownerFilter}
+              onChange={(e) => {
+                setOwnerFilter(e.target.value as "all" | "mine" | "others");
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none bg-white cursor-pointer min-w-[120px]"
+            >
+              <option value="all">All Owners</option>
+              <option value="mine">My Sets</option>
+              <option value="others">Other Users</option>
+            </select>
+
+            {(category || level || sortBy !== "popular" || ownerFilter !== "all") && (
               <button
                 onClick={() => {
                   setCategory("");
                   setLevel("");
                   setSortBy("popular");
+                  setOwnerFilter("all");
                   setCurrentPage(1);
                 }}
                 className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors cursor-pointer whitespace-nowrap px-1 py-1"
@@ -147,7 +197,7 @@ export default function ExploreAll() {
 
       {!publicSetsLoading && (
         <p className="text-sm text-slate-500 mb-4 font-medium">
-          Showing <span className="text-purple-600 font-bold">{publicSets.length}</span> of <span className="text-purple-600 font-bold">{publicSetsPagination?.total || 0}</span> sets
+          Showing <span className="text-purple-600 font-bold">{filteredSets.length}</span> of <span className="text-purple-600 font-bold">{publicSetsPagination?.total || 0}</span> sets
         </p>
       )}
 
@@ -157,7 +207,7 @@ export default function ExploreAll() {
         </div>
       ) : null}
 
-      {!publicSetsLoading && publicSets.length === 0 ? (
+      {!publicSetsLoading && filteredSets.length === 0 ? (
         <div className="col-span-full py-16 text-center">
           <EmptyState title="No sets found" description="Try adjusting your search filters." />
           <button
@@ -167,6 +217,7 @@ export default function ExploreAll() {
               setCategory("");
               setLevel("");
               setSortBy("popular");
+              setOwnerFilter("all");
               setCurrentPage(1);
             }}
             className="mt-4 text-purple-600 font-semibold hover:underline text-sm cursor-pointer"
@@ -176,22 +227,28 @@ export default function ExploreAll() {
         </div>
       ) : null}
 
-      {!publicSetsLoading && publicSets.length > 0 ? (
+      {!publicSetsLoading && filteredSets.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {publicSets.map((set) => (
-              <VocabSetCard
-                key={set.id}
-                id={set.id}
-                name={set.name}
-                wordsCount={set.totalWords}
-                category={set.category}
-                level={set.level}
-                mastery={0}
-                colorTheme={set.colorTheme}
-                onClick={() => navigate(`/explore/${set.id}`)}
-              />
-            ))}
+            {filteredSets.map((set) => {
+              const isOwner = Boolean(user?.id && set.userId === user.id);
+              const isAdded = !isOwner && sets.some(s => s.clonedFrom === set.id);
+              return (
+                <TrendingSetCard
+                  key={set.id}
+                  title={set.name}
+                  description={set.description || ""}
+                  tags={set.tags || []}
+                  termsCount={set.totalWords}
+                  topBorderColorClass={getBorderColor(set.colorTheme)}
+                  isAdded={isAdded}
+                  isOwner={isOwner}
+                  className="w-full"
+                  onClick={() => navigate(`/explore/${set.id}`)}
+                  onAdd={() => handleCloneSet(set.id)}
+                />
+              );
+            })}
           </div>
 
           {publicSetsPagination && publicSetsPagination.totalPages > 1 && (

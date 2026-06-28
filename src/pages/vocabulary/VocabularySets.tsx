@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Compass } from "lucide-react";
+import { Search, Plus, Compass, FolderHeart } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "../../store";
 import { createSet, fetchVocabSets, type ColorTheme, type VocabCategory, type VocabLevel } from "../../store/slices/vocabSlice";
@@ -142,6 +142,13 @@ export default function VocabularySets() {
           <p className="text-base text-slate-500 mt-1">Manage and track your learning progress across different topics.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/my-content?tab=sets')}
+            className="flex items-center gap-2 py-2.5 px-4 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition-all duration-200"
+          >
+            <FolderHeart className="w-5 h-5 text-purple-600" />
+            Sharing & Moderation
+          </button>
           <button 
             onClick={() => navigate('/explore')}
             className="flex items-center gap-2 py-2.5 px-4 rounded-lg border-2 border-purple-500 text-purple-600 font-semibold hover:bg-purple-50 transition-all duration-200"

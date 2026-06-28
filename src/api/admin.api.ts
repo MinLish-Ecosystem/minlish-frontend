@@ -59,3 +59,13 @@ export const overrideModeration = (payload: { setId: string; status: 'approved' 
 
 export const runAutoModeration = () =>
   api.post<ApiResponse<any>>('/api/v1/admin/moderation/run');
+
+// ─── Post Moderation & Management ──────────────────────────────────────────────
+export const getPendingPosts = () =>
+  api.get<ApiResponse<any[]>>('/api/v1/admin/moderation/posts/pending');
+
+export const overridePostModeration = (payload: { postId: string; status: 'approved' | 'rejected'; reason: string }) =>
+  api.put<ApiResponse<any>>('/api/v1/admin/moderation/posts/override', payload);
+
+export const listAllPosts = (page: number = 1, limit: number = 20) =>
+  api.get<ApiResponse<any>>('/api/v1/admin/posts', { params: { page, limit } });

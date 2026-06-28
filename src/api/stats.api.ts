@@ -41,8 +41,10 @@ export interface HeatmapStat {
   count: number;
 }
 
-export const getDashboardStats = () => {
-  return api.get<ApiResponse<DashboardStats>>('/api/v1/stats/dashboard');
+export const getDashboardStats = (days?: number) => {
+  return api.get<ApiResponse<DashboardStats>>('/api/v1/stats/dashboard', {
+    params: days ? { days } : {}
+  });
 };
 
 export const getDailyStats = (days: number = 30) => {

@@ -39,3 +39,9 @@ export const getLearningProfile = () =>
 export const updateLearningProfile = (payload: Partial<LearningProfile>) =>
   api.put<ApiResponse<LearningProfile>>('/api/v1/user/learning-profile', payload);
 
+export const changePassword = (payload: { oldPassword: string; newPassword: string }) =>
+  api.post<ApiResponse<{ mfaRequired: boolean; message?: string }>>('/api/v1/user/change-password', payload);
+
+export const verifyChangePassword = (payload: { oldPassword: string; newPassword: string; otp: string }) =>
+  api.post<ApiResponse<{ message: string }>>('/api/v1/user/change-password/verify', payload);
+

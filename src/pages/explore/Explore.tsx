@@ -10,6 +10,7 @@ import { fetchPublicSets, clonePublicSet, fetchVocabSets } from "../../store/sli
 import type { RootState } from "../../store";
 import { getErrorMessage } from "../../lib/formErrors";
 import Loading from "../../components/common/Loading";
+import { useAuth } from "../../hooks/useAuth";
 
 const FALLBACK_SLIDES = [
   {
@@ -66,6 +67,7 @@ const getBorderColor = (theme: string) => {
 export default function Explore() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { user } = useAuth();
   const { publicSets, publicSetsLoading, sets } = useSelector((state: RootState) => state.vocab);
 
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -258,8 +260,9 @@ export default function Explore() {
         
         <div className="flex overflow-x-auto hide-scrollbar gap-6 pb-6 snap-x">
           {publicSets.length > 0 ? (
-            publicSets.map((set) => {
-              const isAdded = sets.some(s => s.clonedFrom === set.id);
+            publicSets.slice(0, 10).map((set) => {
+              const isOwner = Boolean(user?.id && set.userId === user.id);
+              const isAdded = !isOwner && sets.some(s => s.clonedFrom === set.id);
               return (
                 <TrendingSetCard
                   key={set.id}
@@ -269,6 +272,7 @@ export default function Explore() {
                   termsCount={set.totalWords}
                   topBorderColorClass={getBorderColor(set.colorTheme)}
                   isAdded={isAdded}
+                  isOwner={isOwner}
                   onClick={() => navigate(`/explore/${set.id}`)}
                   onAdd={() => handleCloneSet(set.id)}
                 />

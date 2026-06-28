@@ -255,7 +255,7 @@ export default function AdminUserManagement() {
                     <td className="p-4 flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-100 border border-slate-200">
                         <img 
-                          src={user.avatar || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100"} 
+                          src={user.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"} 
                           alt={user.name} 
                           className="w-full h-full object-cover"
                         />
@@ -368,7 +368,7 @@ export default function AdminUserManagement() {
             <div className="flex gap-4 items-center">
               <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#1000a3]/20 bg-slate-50">
                 <img 
-                  src={selectedUser.avatar || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100"} 
+                  src={selectedUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"} 
                   alt={selectedUser.name} 
                   className="w-full h-full object-cover"
                 />

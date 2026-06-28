@@ -14,6 +14,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { createPost, getPostDetail, updatePost } from "../../api/post.api";
+import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 
 const EDITOR_CATEGORIES = [
@@ -28,6 +29,7 @@ const EDITOR_CATEGORIES = [
 
 export default function CommunityEditor() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { postId } = useParams<{ postId: string }>();
   const isEditMode = !!postId;
 
@@ -37,6 +39,7 @@ export default function CommunityEditor() {
   const [difficulty, setDifficulty] = useState<"Beginner" | "Intermediate" | "Advanced">("Intermediate");
   const [coverImage, setCoverImage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isPublicState, setIsPublicState] = useState(false);
 
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
 
@@ -52,6 +55,7 @@ export default function CommunityEditor() {
             setCategory(post.category);
             setDifficulty(post.difficulty);
             setCoverImage(post.coverImage || "");
+            setIsPublicState(post.isPublic || false);
           }
         } catch (err: any) {
           console.error(err);
@@ -62,10 +66,9 @@ export default function CommunityEditor() {
     }
   }, [isEditMode, postId]);
 
-  const handlePublish = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePublish = async (isPublicValue: boolean) => {
     if (!title.trim() || !content.trim()) {
-      toast.error("Please fill in both the title and the content.");
+      toast.error("Vui lòng nhập cả tiêu đề và nội dung bài viết.");
       return;
     }
 
@@ -78,11 +81,16 @@ export default function CommunityEditor() {
           category,
           difficulty,
           coverImage: coverImage.trim() || undefined,
+          isPublic: isPublicValue
         });
 
         if (res.data?.success) {
-          toast.success("Post updated successfully!");
-          navigate(`/community/post/${postId}`);
+          toast.success("Đã cập nhật bài viết thành công!");
+          if (user?.role === "admin") {
+            navigate("/admin/posts");
+          } else {
+            navigate("/my-content?tab=posts");
+          }
         }
       } else {
         const res = await createPost({
@@ -91,17 +99,22 @@ export default function CommunityEditor() {
           category,
           difficulty,
           coverImage: coverImage.trim() || undefined,
-          isFeatured: false
+          isFeatured: false,
+          isPublic: isPublicValue
         });
 
         if (res.data?.success) {
-          toast.success("Post published successfully!");
-          navigate("/community");
+          toast.success(isPublicValue ? "Đã gửi yêu cầu phê duyệt bài viết công khai!" : "Đã lưu nháp bài viết riêng tư!");
+          if (user?.role === "admin") {
+            navigate("/admin/posts");
+          } else {
+            navigate("/my-content?tab=posts");
+          }
         }
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.message || `Failed to ${isEditMode ? "update" : "publish"} post`);
+      toast.error(err.response?.data?.message || `Không thể lưu bài viết`);
     } finally {
       setSubmitting(false);
     }
@@ -302,23 +315,35 @@ export default function CommunityEditor() {
             Words: <span className="text-slate-600">{wordCount}</span>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => (isEditMode && postId ? navigate(`/community/post/${postId}`) : navigate("/community"))}
-              className="px-6 py-2.5 border border-slate-200 rounded-full font-bold text-sm text-slate-500 hover:bg-slate-50 transition-colors"
+              onClick={() => {
+                if (user?.role === "admin") {
+                  navigate("/admin/posts");
+                } else {
+                  navigate("/my-content?tab=posts");
+                }
+              }}
+              className="px-5 py-2.5 border border-slate-200 rounded-full font-bold text-xs text-slate-500 hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              Cancel
+              Hủy bỏ
             </button>
             <button
               type="button"
               disabled={submitting}
-              onClick={handlePublish}
-              className="px-6 py-2.5 bg-[#4648d4] text-white rounded-full font-bold text-sm shadow-md hover:bg-indigo-600 transition-all disabled:opacity-50 flex items-center gap-2"
+              onClick={() => handlePublish(false)}
+              className="px-5 py-2.5 border border-[#4648d4] text-[#4648d4] hover:bg-purple-50/50 rounded-full font-bold text-xs transition-all disabled:opacity-50 cursor-pointer"
             >
-              {submitting 
-                ? (isEditMode ? "Saving..." : "Publishing...") 
-                : (isEditMode ? "Save Changes" : "Publish Article")}
+              {isEditMode ? "Lưu riêng tư" : "Lưu bản nháp"}
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => handlePublish(true)}
+              className="px-5 py-2.5 bg-[#4648d4] text-white rounded-full font-bold text-xs shadow-md hover:bg-indigo-600 transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+            >
+              {isEditMode ? "Lưu & Công khai" : "Đăng bài viết"}
             </button>
           </div>
         </div>

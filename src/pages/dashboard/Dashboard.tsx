@@ -305,30 +305,81 @@ export default function Dashboard() {
         {/* Sidebar Widgets */}
         <div className="space-y-6">
           {/* Daily Review Reminder */}
-          <div className="bg-linear-to-br from-slate-50 to-purple-50 border border-purple-100 rounded-4xl p-8 shadow-sm relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-slate-50 to-purple-50 border border-purple-100 rounded-4xl p-8 shadow-sm relative overflow-hidden group">
             <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-200/30 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500" />
             <div className="relative z-10">
-              <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center text-purple-600 mb-6">
+              <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center text-purple-600 mb-5">
                 <BrainCircuit className="w-8 h-8" />
               </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-2">Daily Review</h3>
-              <p className="text-slate-500 mb-8 leading-relaxed">
-                {dueSummary.rawDueReviewsCount && dueSummary.rawDueReviewsCount > dueSummary.dueReviewsCount ? (
+
+              <h3 className="text-xl font-bold text-slate-800 mb-1">Lịch học hôm nay</h3>
+              <p className="text-xs text-slate-400 mb-5">Theo lịch trình SRS cá nhân hoá của bạn</p>
+
+              {/* Breakdown stats */}
+              <div className="space-y-3 mb-6">
+                {/* New words */}
+                <div className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-50 flex items-center justify-center">
+                      <PlusCircle className="w-4 h-4 text-cyan-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">Từ mới</p>
+                      <p className="text-[10px] text-slate-400">Chưa từng học</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-extrabold text-cyan-600">{dueSummary.newWordsCount}</span>
+                    {dueSummary.rawNewWordsCount > dueSummary.newWordsCount && (
+                      <p className="text-[9px] text-slate-400">/ {dueSummary.rawNewWordsCount} tổng</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Due reviews */}
+                <div className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center">
+                      <History className="w-4 h-4 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">Ôn tập</p>
+                      <p className="text-[10px] text-slate-400">Đến hạn theo SRS</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-extrabold text-purple-600">{dueSummary.dueReviewsCount}</span>
+                    {dueSummary.rawDueReviewsCount > dueSummary.dueReviewsCount && (
+                      <p className="text-[9px] text-slate-400">/ {dueSummary.rawDueReviewsCount} tổng</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Total divider */}
+                <div className="flex items-center justify-between px-1 pt-1 border-t border-slate-200">
+                  <span className="text-xs font-bold text-slate-500">Tổng cần học hôm nay</span>
+                  <span className={`text-lg font-extrabold ${dueSummary.totalDueCount > 0 ? 'text-[#4648d4]' : 'text-emerald-500'}`}>
+                    {dueSummary.totalDueCount > 0 ? dueSummary.totalDueCount : '✓ Xong!'}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleStartReview}
+                disabled={dueSummary.totalDueCount === 0}
+                className="w-full bg-[#4648d4] text-white py-4 rounded-2xl font-bold shadow-xl shadow-purple-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                {dueSummary.totalDueCount > 0 ? (
                   <>
-                    Bạn có <span className="text-purple-600 font-bold text-lg mx-1">{dueSummary.dueReviewsCount}</span> từ cần ôn tập hôm nay (trên tổng số <span className="text-slate-600 font-bold">{dueSummary.rawDueReviewsCount}</span> từ đến hạn theo lịch trình SRS).
+                    Bắt đầu ôn tập
+                    <ArrowRight className="w-5 h-5" />
                   </>
                 ) : (
                   <>
-                    Bạn có <span className="text-purple-600 font-bold text-lg mx-1">{dueSummary.dueReviewsCount}</span> từ cần ôn tập hôm nay theo lịch trình SRS.
+                    <CheckCircle2 className="w-5 h-5" />
+                    Đã hoàn thành hôm nay!
                   </>
                 )}
-              </p>
-              <button
-                onClick={handleStartReview}
-                className="w-full bg-[#4648d4] text-white py-4 rounded-2xl font-bold shadow-xl shadow-purple-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                Start Review
-                <ArrowRight className="w-5 h-5" />
               </button>
             </div>
           </div>

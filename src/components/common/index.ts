@@ -15,3 +15,5 @@ export { default as PasswordField } from "./PasswordField";
 export { default as SubmitButton } from "./SubmitButton";
 export { default as FormError } from "./FormError";
 export { default as ScrollToTop } from "./ScrollToTop";
+export { default as ReportModal } from "./ReportModal";
+export { default as ConfirmLogoutModal } from "./ConfirmLogoutModal";

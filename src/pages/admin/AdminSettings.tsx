@@ -426,7 +426,7 @@ export default function AdminSettings() {
               value={formData?.aiModerationGuidelines}
               onChange={(e) => handleChange("aiModerationGuidelines", e.target.value)}
               rows={6}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1000a3] focus:border-transparent transition-all"
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-sans font-semibold text-slate-600 leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1000a3] focus:border-transparent transition-all"
             />
           </div>
         </div>

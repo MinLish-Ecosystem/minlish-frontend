@@ -10,14 +10,17 @@ import {
   LogOut,
   Sparkles,
   Search,
-  Moon,
-  Zap
+  HelpCircle,
+  Zap,
+  FolderHeart
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { cn } from "../../lib/utils";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store";
 import NotificationDropdown from "./NotificationDropdown";
+import { ConfirmLogoutModal, ReportModal } from "../common";
+import { useState } from "react";
 
 const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
   <NavLink
@@ -39,7 +42,14 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const { sets } = useSelector((state: RootState) => state.vocab);
 
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+
   const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
     logout();
     navigate("/login");
   };
@@ -70,14 +80,12 @@ export default function MainLayout() {
           <SidebarItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
           <SidebarItem to="/vocabulary" icon={BookOpen} label="Vocabulary" />
           <SidebarItem to="/community" icon={Users} label="Community" />
+          <SidebarItem to="/my-content" icon={FolderHeart} label="My Content" />
           <SidebarItem to="/practice" icon={BrainCircuit} label="Practice" />
           <SidebarItem to="/statistics" icon={BarChart3} label="Statistics" />
         </nav>
 
         <div className="pt-4 border-t border-slate-100 space-y-2">
-          <button className="w-full py-3 px-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl shadow-lg hover:scale-[1.02] transition-transform mb-4">
-            Upgrade to Pro
-          </button>
           <SidebarItem to="/settings" icon={Settings} label="Settings" />
           <button 
             onClick={handleLogout}
@@ -93,16 +101,7 @@ export default function MainLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
         <header className="h-[72px] bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 relative z-30">
-          <div className="flex items-center w-full max-w-md bg-slate-100 rounded-full px-4 py-2 border border-transparent focus-within:border-purple-300 focus-within:bg-white transition-all">
-            <Search className="w-4 h-4 text-slate-400 mr-2" />
-            <input 
-              type="text" 
-              placeholder="Search vocabulary..." 
-              className="bg-transparent border-none focus:ring-0 w-full text-sm placeholder:text-slate-400"
-            />
-          </div>
-
-          <div className="hidden lg:flex items-center gap-8 mx-8">
+          <div className="hidden lg:flex items-center gap-8">
             <NavLink to="/dashboard" className={({ isActive }) => cn("text-sm font-semibold transition-colors", isActive ? "text-purple-600 border-b-2 border-purple-600 pb-1" : "text-slate-500 hover:text-slate-800")}>Home</NavLink>
             <NavLink to="/vocabulary" className={({ isActive }) => cn("text-sm font-semibold transition-colors", isActive ? "text-purple-600 border-b-2 border-purple-600 pb-1" : "text-slate-500 hover:text-slate-800")}>My Library</NavLink>
             <NavLink to="/explore" className={({ isActive }) => cn("text-sm font-semibold transition-colors", isActive ? "text-purple-600 border-b-2 border-purple-600 pb-1" : "text-slate-500 hover:text-slate-800")}>Explore</NavLink>
@@ -111,8 +110,12 @@ export default function MainLayout() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 pr-4 border-r border-slate-200">
               <NotificationDropdown />
-              <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-                <Moon className="w-5 h-5" />
+              <button 
+                onClick={() => setShowReportModal(true)}
+                className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+                title="Gửi báo cáo / Góp ý"
+              >
+                <HelpCircle className="w-5 h-5" />
               </button>
             </div>
             
@@ -129,7 +132,7 @@ export default function MainLayout() {
               className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-100 cursor-pointer hover:scale-105 transition-transform"
             >
               <img 
-                src={user?.avatar || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100"} 
+                src={user?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"} 
                 alt="Profile" 
                 className="w-full h-full object-cover"
               />
@@ -144,6 +147,19 @@ export default function MainLayout() {
           <ScrollToTop />
         </main>
       </div>
+
+      {/* Confirm Logout Modal */}
+      <ConfirmLogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+      />
+
+      {/* Quick Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+      />
     </div>
   );
 }
