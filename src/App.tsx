@@ -8,6 +8,7 @@ import MainLayout from "./components/layout/MainLayout";
 import { useSelector } from "react-redux";
 import { RootState } from "./store";
 import SessionExpiredManager from "./components/common/SessionExpiredManager";
+import { useNotificationSocket } from "./hooks/useNotificationSocket";
 
 // ─── Auth pages (small, loaded eagerly since they're the entry point) ─────────
 import Login from "./pages/auth/Login";
@@ -91,10 +92,16 @@ const RootRedirect = () => {
 };
 
 // ─── App ──────────────────────────────────────────────────────────────────────
+const SocketInitializer = ({ children }: { children: React.ReactNode }) => {
+  useNotificationSocket();
+  return <>{children}</>;
+};
+
 export default function App() {
   return (
     <Provider store={store}>
-      <BrowserRouter>
+      <SocketInitializer>
+        <BrowserRouter>
         <SessionExpiredManager />
         <Routes>
           {/* Auth Routes — no Suspense needed; pages are statically imported */}
@@ -366,6 +373,14 @@ export default function App() {
               }
             />
             <Route
+              path="/admin/posts/:postId"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CommunityPostDetail />
+                </Suspense>
+              }
+            />
+            <Route
               path="/admin/posts/:postId/edit"
               element={
                 <Suspense fallback={<PageLoader />}>
@@ -395,6 +410,7 @@ export default function App() {
         </Routes>
         <Toaster position="top-right" />
       </BrowserRouter>
+      </SocketInitializer>
     </Provider>
   );
 }

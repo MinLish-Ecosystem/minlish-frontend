@@ -426,9 +426,14 @@ export default function CommunityPostDetail() {
               </div>
               
               <div className="flex items-center gap-3">
-                {user && post.author && user.id === post.author._id && (
+                {user && post.author && (user.id === post.author._id || user.role === "admin") && (
                   <button
-                    onClick={() => navigate(`/community/post/${post._id}/edit`)}
+                    onClick={() => {
+                      const editPath = user.role === "admin"
+                        ? `/admin/posts/${post._id}/edit`
+                        : `/community/post/${post._id}/edit`;
+                      navigate(editPath);
+                    }}
                     className="px-4 py-2 rounded-full border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-all duration-200 flex items-center gap-2 cursor-pointer"
                   >
                     <Edit3 className="w-4 h-4" />

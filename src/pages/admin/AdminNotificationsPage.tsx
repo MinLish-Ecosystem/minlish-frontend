@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Bell,
   Flag,
@@ -63,6 +63,10 @@ interface ExpandedReportData {
   senderEmail?: string;
   subject?: string;
   message?: string;
+  moderationType?: string;
+  approved?: number;
+  rejected?: number;
+  runType?: string;
 }
 
 export default function AdminNotificationsPage() {
@@ -76,6 +80,16 @@ export default function AdminNotificationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const itemsPerPage = 10;
+
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get("highlightId");
+
+  // Auto-expand and scroll to highlighted notification
+  useEffect(() => {
+    if (highlightId) {
+      setExpandedId(highlightId);
+    }
+  }, [highlightId]);
 
   useEffect(() => {
     dispatch(
@@ -158,6 +172,7 @@ export default function AdminNotificationsPage() {
 
   const renderNotificationCard = (notif: any) => {
     const isExpanded = expandedId === notif._id;
+    const isHighlighted = notif._id === highlightId;
     const data: ExpandedReportData = notif.data || {};
     const isAiModeration = notif.type === "ai_moderation";
     const isReport = notif.type === "report";
@@ -167,10 +182,12 @@ export default function AdminNotificationsPage() {
         key={notif._id}
         className={cn(
           "bg-white border rounded-2xl overflow-hidden transition-all duration-300 group",
-          !notif.isRead ? "border-l-4 shadow-sm" : "border-slate-100",
-          !notif.isRead && isReport ? "border-l-rose-500 border-rose-100 bg-rose-50/5" : "",
-          !notif.isRead && isAiModeration ? "border-l-violet-500 border-violet-100 bg-violet-50/5" : "",
-          notif.isRead ? "opacity-90" : ""
+          isHighlighted ? "border-amber-300 ring-2 ring-amber-100 bg-amber-50/10" : (
+            !notif.isRead ? "border-l-4 shadow-sm" : "border-slate-100"
+          ),
+          !notif.isRead && isReport && !isHighlighted ? "border-l-rose-500 border-rose-100 bg-rose-50/5" : "",
+          !notif.isRead && isAiModeration && !isHighlighted ? "border-l-violet-500 border-violet-100 bg-violet-50/5" : "",
+          notif.isRead && !isHighlighted ? "opacity-90" : ""
         )}
       >
         {/* Main row */}

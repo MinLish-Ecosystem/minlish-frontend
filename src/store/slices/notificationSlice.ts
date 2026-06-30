@@ -94,6 +94,14 @@ const notificationSlice = createSlice({
       state.notifications = [];
       state.unreadCount = 0;
       state.pagination = { page: 1, limit: 20, total: 0, totalPages: 1 };
+    },
+    addReceivedNotification: (state, action: PayloadAction<any>) => {
+      // Check if notification already exists to avoid duplicates
+      const exists = state.notifications.some(n => n._id === action.payload._id);
+      if (!exists) {
+        state.notifications.unshift(action.payload);
+        state.unreadCount += 1;
+      }
     }
   },
   extraReducers: (builder) => {
@@ -143,5 +151,5 @@ const notificationSlice = createSlice({
   },
 });
 
-export const { clearNotificationsState } = notificationSlice.actions;
+export const { clearNotificationsState, addReceivedNotification } = notificationSlice.actions;
 export default notificationSlice.reducer;

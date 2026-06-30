@@ -12,7 +12,7 @@ import {
   HardDrive, 
   BrainCircuit
 } from "lucide-react";
-import { getAdminStats, getAuditLogs, getPendingSets, runAutoModeration, getSystemConfig } from "../../api/admin.api";
+import { getAdminStats, getAuditLogs, getPendingSets, runAutoModeration, getSystemConfig, getSystemHealth } from "../../api/admin.api";
 import { toast } from "react-hot-toast";
 
 interface Stats {
@@ -28,23 +28,26 @@ export default function AdminDashboard() {
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [systemConfig, setSystemConfig] = useState<any>(null);
+  const [systemHealth, setSystemHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [moderating, setModerating] = useState(false);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [statsRes, pendingRes, logsRes, configRes] = await Promise.all([
+      const [statsRes, pendingRes, logsRes, configRes, healthRes] = await Promise.all([
         getAdminStats(),
         getPendingSets(),
         getAuditLogs(1, 5),
-        getSystemConfig()
+        getSystemConfig(),
+        getSystemHealth(),
       ]);
 
       setStats(statsRes.data.data);
       setPendingCount(pendingRes.data.data.length);
       setAuditLogs(logsRes.data.data.data || []);
       setSystemConfig(configRes.data.data);
+      setSystemHealth(healthRes.data.data);
     } catch (error) {
       console.error("Failed to load admin dashboard data:", error);
       toast.error("Failed to load system statistics");
@@ -197,10 +200,15 @@ export default function AdminDashboard() {
                 <Database className="w-5 h-5 text-[#1000a3]" />
                 <div>
                   <h4 className="text-sm font-semibold">MongoDB Database</h4>
-                  <p className="text-[10px] text-slate-400">Primary data storage connection</p>
+                  <p className="text-[10px] text-slate-400">
+                    {systemHealth?.mongodb ? "Connected" : "Disconnected"}
+                  </p>
                 </div>
               </div>
-              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className={`flex h-2.5 w-2.5 rounded-full ${
+                systemHealth === null ? "bg-slate-300 animate-pulse" :
+                systemHealth?.mongodb ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
+              }`} />
             </div>
 
             {/* Redis Cache */}
@@ -209,10 +217,22 @@ export default function AdminDashboard() {
                 <HardDrive className="w-5 h-5 text-[#8127cf]" />
                 <div>
                   <h4 className="text-sm font-semibold">Redis Cache & Queue</h4>
-                  <p className="text-[10px] text-slate-400">Leaderboards, sessions & queues</p>
+                  <p className="text-[10px] text-slate-400">
+                    {systemHealth === null
+                      ? "Checking..."
+                      : !systemHealth?.redisConfigured
+                      ? "Not configured (REDIS_URL missing)"
+                      : systemHealth?.redis
+                      ? "Connected — leaderboards & queues active"
+                      : "Disconnected — using in-memory fallback"}
+                  </p>
                 </div>
               </div>
-              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className={`flex h-2.5 w-2.5 rounded-full ${
+                systemHealth === null ? "bg-slate-300 animate-pulse" :
+                !systemHealth?.redisConfigured ? "bg-slate-400" :
+                systemHealth?.redis ? "bg-emerald-500 animate-pulse" : "bg-amber-400"
+              }`} />
             </div>
 
             {/* SendGrid Mailer */}
@@ -222,12 +242,13 @@ export default function AdminDashboard() {
                 <div>
                   <h4 className="text-sm font-semibold">SendGrid Mailer</h4>
                   <p className="text-[10px] text-slate-400">
-                    {systemConfig?.mailerActive ? "Connected and active" : "Disabled"}
+                    {systemHealth?.mailer ? "Connected and active" : "Disabled"}
                   </p>
                 </div>
               </div>
               <span className={`flex h-2.5 w-2.5 rounded-full ${
-                systemConfig?.mailerActive ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
+                systemHealth === null ? "bg-slate-300 animate-pulse" :
+                systemHealth?.mailer ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
               }`} />
             </div>
 
@@ -237,10 +258,17 @@ export default function AdminDashboard() {
                 <BrainCircuit className="w-5 h-5 text-[#8127cf]" />
                 <div>
                   <h4 className="text-sm font-semibold">Google Gemini API</h4>
-                  <p className="text-[10px] text-slate-400">Content moderation & generation support</p>
+                  <p className="text-[10px] text-slate-400">
+                    {systemHealth === null ? "Checking..."
+                      : systemHealth?.gemini ? "API key configured — moderation active"
+                      : "GEMINI_API_KEY not set"}
+                  </p>
                 </div>
               </div>
-              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className={`flex h-2.5 w-2.5 rounded-full ${
+                systemHealth === null ? "bg-slate-300 animate-pulse" :
+                systemHealth?.gemini ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
+              }`} />
             </div>
           </div>
         </div>

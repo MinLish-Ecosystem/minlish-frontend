@@ -11,7 +11,6 @@ import {
   Eye,
   XCircle,
   Plus,
-  ExternalLink,
   ArrowLeft,
   Edit2,
   Send
@@ -30,20 +29,22 @@ export default function MyContentManager() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "public" | "pending" | "rejected" | "private">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "alphabetical">("newest");
 
   const fetchContent = async () => {
     setLoading(true);
     try {
-      if (activeTab === "sets") {
-        const res = await api.get("/api/v1/vocab/sets");
-        if (res.data?.success) {
-          setSets(res.data.data || []);
-        }
-      } else {
-        const res = await api.get("/api/v1/posts", { params: { manage: true } });
-        if (res.data?.success) {
-          setPosts(res.data.data || []);
-        }
+      // Fetch both sets and posts concurrently to ensure counts are always loaded immediately
+      const [setsRes, postsRes] = await Promise.all([
+        api.get("/api/v1/vocab/sets"),
+        api.get("/api/v1/posts", { params: { manage: true } })
+      ]);
+      
+      if (setsRes.data?.success) {
+        setSets(setsRes.data.data || []);
+      }
+      if (postsRes.data?.success) {
+        setPosts(postsRes.data.data || []);
       }
     } catch (err: any) {
       console.error(err);
@@ -55,7 +56,7 @@ export default function MyContentManager() {
 
   useEffect(() => {
     fetchContent();
-  }, [activeTab]);
+  }, []); // Run once on mount to get counts for both tabs immediately
 
   const handleSetTab = (tab: "sets" | "posts") => {
     setSearchParams({ tab });
@@ -72,7 +73,6 @@ export default function MyContentManager() {
         if (returned?.isPublic === false) {
           toast.success("Retracted set to Private. You can now edit and resubmit.");
         } else {
-          // Admin already processed it — moderation already done
           toast("This set has already been processed by the admin. Please check the updated status.", { icon: "ℹ️" });
         }
         fetchContent();
@@ -121,6 +121,32 @@ export default function MyContentManager() {
     }
   };
 
+  /** Quickly make a private post public (sends for moderation) */
+  const handleSetPostPublic = async (postId: string) => {
+    try {
+      const res = await api.put(`/api/v1/posts/${postId}`, { isPublic: true });
+      if (res.data?.success) {
+        toast.success("Post submitted for review. Please await approval.");
+        fetchContent();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Submission failed");
+    }
+  };
+
+  /** Cancel pending post review (retract to Private/Draft) */
+  const handleCancelPostPending = async (postId: string) => {
+    try {
+      const res = await api.put(`/api/v1/posts/${postId}`, { isPublic: false });
+      if (res.data?.success) {
+        toast.success("Post retracted to Draft. You can now edit and resubmit.");
+        fetchContent();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Action failed");
+    }
+  };
+
   // ─── Status helpers ───────────────────────────────────────────────────────
 
   const getStatusMeta = (item: any) => {
@@ -158,8 +184,6 @@ export default function MyContentManager() {
 
   // ─── Sort & Filter ────────────────────────────────────────────────────────
 
-  const SORT_ORDER: Record<string, number> = { pending: 0, rejected: 1, approved: 2, private: 3 };
-
   const getStatusKey = (item: any) => {
     if (!item.isPublic) return "private";
     return item.moderationStatus || "approved";
@@ -179,7 +203,21 @@ export default function MyContentManager() {
         if (statusFilter === "rejected") return sk === "rejected";
         return true;
       })
-      .sort((a, b) => (SORT_ORDER[getStatusKey(a)] ?? 4) - (SORT_ORDER[getStatusKey(b)] ?? 4));
+      .sort((a, b) => {
+        if (sortBy === "alphabetical") {
+          const titleA = (a.name || a.title || "").toLowerCase();
+          const titleB = (b.name || b.title || "").toLowerCase();
+          return titleA.localeCompare(titleB);
+        }
+        
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        if (sortBy === "oldest") {
+          return dateA - dateB;
+        }
+        // Default: newest first (newest date first)
+        return dateB - dateA;
+      });
   };
 
   const filteredSets  = applyFilters(sets);
@@ -215,7 +253,7 @@ export default function MyContentManager() {
           {/* Title + meta */}
           <div
             className="flex-1 min-w-0 cursor-pointer"
-            onClick={() => navigate(`/vocabulary/${setId}`)}
+            onClick={() => navigate(isApproved ? `/explore/${setId}` : `/vocabulary/${setId}`)}
           >
             <p className="font-bold text-slate-800 text-sm truncate hover:text-[#4648d4] transition-colors">
               {set.name}
@@ -306,69 +344,105 @@ export default function MyContentManager() {
     const isPending  = statusKey === "pending";
     const isRejected = statusKey === "rejected";
     const isApproved = statusKey === "approved" && post.isPublic;
+    const isPrivate  = statusKey === "private";
 
     return (
       <div
         key={postId}
         className={cn(
-          "bg-white rounded-2xl border px-5 py-4 flex items-center gap-4 hover:shadow-md transition-all",
+          "bg-white rounded-2xl border transition-all hover:shadow-md overflow-hidden",
           isPending  ? "border-amber-200 bg-amber-50/20" :
           isRejected ? "border-rose-200 bg-rose-50/10" :
           "border-slate-100"
         )}
       >
-        {/* Status badge */}
-        <div className="shrink-0 w-32">
-          {renderStatusBadge(post, isPending)}
+        {/* Main row */}
+        <div className="px-5 py-4 flex items-center gap-4">
+          {/* Status badge */}
+          <div className="shrink-0 w-32">
+            {renderStatusBadge(post, isPending)}
+          </div>
+
+          {/* Title + meta */}
+          <div
+            className="flex-1 min-w-0 cursor-pointer"
+            onClick={() => navigate(`/community/post/${postId}`)}
+          >
+            <p className="font-bold text-slate-800 text-sm truncate hover:text-[#4648d4] transition-colors">
+              {post.title}
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5 truncate">
+              {post.category} • {post.readingTime || 1} min read
+            </p>
+            {isRejected && post.moderationReason && (
+              <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" />
+                {post.moderationReason}
+              </p>
+            )}
+            {isPending && (
+              <p className="text-xs text-amber-600 mt-1">
+                Currently in review queue. You cannot edit/delete it at this time.
+              </p>
+            )}
+          </div>
+
+          {/* View button */}
+          <button
+            onClick={() => navigate(`/community/post/${postId}`)}
+            className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all shrink-0"
+            title="View post details"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Title + meta */}
-        <div
-          className="flex-1 min-w-0 cursor-pointer"
-          onClick={() => {
-            if (isApproved) navigate(`/community/post/${postId}`);
-          }}
-        >
-          <p className={cn(
-            "font-bold text-sm truncate transition-colors",
-            isApproved ? "text-slate-800 hover:text-[#4648d4] cursor-pointer" : "text-slate-700"
-          )}>
-            {post.title}
-            {isApproved && <ExternalLink className="w-3 h-3 inline ml-1 text-slate-400" />}
-          </p>
-          <p className="text-xs text-slate-400 mt-0.5 truncate">
-            {post.category} • {post.readingTime || 1} min read
-          </p>
-          {isRejected && post.moderationReason && (
-            <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3 shrink-0" />
-              {post.moderationReason}
-            </p>
+        {/* Quick action bar (bottom strip) */}
+        <div className="px-5 pb-3 flex items-center gap-2 flex-wrap">
+          {/* Private → Submit for review */}
+          {isPrivate && (
+            <button
+              onClick={() => handleSetPostPublic(postId)}
+              title="Submit for review to make public"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 rounded-xl text-xs font-bold transition-all"
+            >
+              <Send className="w-3.5 h-3.5" />
+              Submit for Review
+            </button>
           )}
-          {isPending && (
-            <p className="text-xs text-amber-600 mt-1">
-              Under review queue.
-            </p>
-          )}
-        </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-2 shrink-0">
+          {/* Approved → Make Private */}
           {isApproved && (
             <button
               onClick={() => handleSetPostPrivate(postId)}
+              title="Retract to Draft — post will no longer be visible publicly"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all"
-              title="Retract to Draft"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Make Draft
+              <Lock className="w-3.5 h-3.5" />
+              Make Private
             </button>
           )}
+
+          {/* Pending → Cancel / Retract */}
+          {isPending && (
+            <button
+              onClick={() => handleCancelPostPending(postId)}
+              title="Retract to Draft to edit content safely"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-xs font-bold transition-all"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              Withdraw
+            </button>
+          )}
+
+          {/* Rejected → Edit & Resubmit */}
           {isRejected && (
             <button
               onClick={() => navigate(`/community/post/${postId}/edit`)}
+              title="Open edit page — click Save & Resubmit once updated"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-bold transition-all"
             >
+              <Edit2 className="w-3.5 h-3.5" />
               Edit & Resubmit
             </button>
           )}
@@ -387,7 +461,7 @@ export default function MyContentManager() {
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight">Content Manager</h1>
-            <p className="text-purple-100 mt-1 text-sm">Track the review status of your vocabulary sets and community posts.</p>
+            <p className="text-purple-100 mt-1 text-sm font-semibold">Track the review status of your vocabulary sets and community posts.</p>
           </div>
           <button
             onClick={() => navigate(activeTab === "sets" ? "/vocabulary/new" : "/community/new")}
@@ -427,8 +501,8 @@ export default function MyContentManager() {
         </button>
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      {/* Search, Filter & Sort */}
+      <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input
@@ -436,28 +510,39 @@ export default function MyContentManager() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name or title..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:border-[#4648d4] focus:ring-4 focus:ring-purple-100 transition-all text-sm outline-none"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:border-[#4648d4] focus:ring-4 focus:ring-purple-100 transition-all text-sm outline-none font-semibold text-slate-700"
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as any)}
-          className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 font-semibold focus:border-[#4648d4] focus:ring-4 focus:ring-purple-100 outline-none bg-white cursor-pointer"
-        >
-          <option value="all">All</option>
-          <option value="pending">Pending</option>
-          <option value="public">Public</option>
-          <option value="rejected">Rejected</option>
-          <option value="private">Private</option>
-        </select>
+        <div className="flex gap-2 shrink-0">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 font-bold focus:border-[#4648d4] focus:ring-4 focus:ring-purple-100 outline-none bg-white cursor-pointer"
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="public">Public</option>
+            <option value="rejected">Rejected</option>
+            <option value="private">Private</option>
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 font-bold focus:border-[#4648d4] focus:ring-4 focus:ring-purple-100 outline-none bg-white cursor-pointer"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="alphabetical">Alphabetical (A-Z)</option>
+          </select>
+        </div>
       </div>
 
       {/* Note for pending */}
       {statusFilter === "all" && (activeTab === "sets" ? sets : posts).some(i => i.isPublic && i.moderationStatus === "pending") && (
-        <div className="mb-5 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-sm">
+        <div className="mb-5 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-sm font-semibold">
           <Clock className="w-4 h-4 shrink-0 mt-0.5 animate-pulse" />
           <div>
-            <span className="font-bold">You have content pending review.</span>{" "}
+            <span>You have content pending review.</span>{" "}
             During review, you cannot edit or delete. If you wish to make changes, please retract it to <strong>Private</strong> first.
           </div>
         </div>
@@ -467,7 +552,7 @@ export default function MyContentManager() {
       {loading ? (
         <div className="flex flex-col items-center py-20">
           <div className="w-10 h-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin mb-3" />
-          <p className="text-slate-500 text-sm font-semibold">Loading...</p>
+          <p className="text-slate-500 text-sm font-semibold animate-pulse">Loading list content...</p>
         </div>
       ) : activeTab === "sets" ? (
         filteredSets.length === 0 ? (

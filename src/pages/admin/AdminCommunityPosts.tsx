@@ -23,9 +23,12 @@ import api from "../../lib/api";
 import { listAllPosts, getPendingPosts, overridePostModeration } from "../../api/admin.api";
 import { deletePost, updatePost } from "../../api/post.api";
 import { cn } from "../../lib/utils";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store";
 
 export default function AdminCommunityPosts() {
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
   const [activeTab, setActiveTab] = useState<"all" | "pending">("all");
   
   // Lists & States
@@ -33,6 +36,8 @@ export default function AdminCommunityPosts() {
   const [pendingPosts, setPendingPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [statusFilter, setStatusFilter] = useState("approved");
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,7 +53,14 @@ export default function AdminCommunityPosts() {
     setLoading(true);
     try {
       const tabParam = activeTab === "all" ? "published" : "drafts";
-      const res = await listAllPosts(currentPage, 10, tabParam, searchQuery.trim() || undefined);
+      const res = await listAllPosts(
+        currentPage, 
+        10, 
+        tabParam, 
+        searchQuery.trim() || undefined,
+        sortOrder,
+        activeTab === "all" ? statusFilter : undefined
+      );
       if (res.data?.success) {
         const list = res.data.data || [];
         if (activeTab === "all") {
@@ -77,7 +89,7 @@ export default function AdminCommunityPosts() {
     }, 350);
 
     return () => window.clearTimeout(timer);
-  }, [activeTab, currentPage, searchQuery]);
+  }, [activeTab, currentPage, searchQuery, sortOrder, statusFilter]);
 
   const handleApprove = async (postId: string) => {
     try {
@@ -251,16 +263,51 @@ export default function AdminCommunityPosts() {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by title, author..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1000a3] transition-all"
-          />
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          {activeTab === "all" && (
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#1000a3] transition-all outline-none"
+            >
+              <option value="approved">Status: Published</option>
+              <option value="pending">Status: Pending Review</option>
+              <option value="rejected">Status: Rejected</option>
+              <option value="private">Status: Private/Draft</option>
+              <option value="all">Status: All Statuses</option>
+            </select>
+          )}
+
+          <select
+            value={sortOrder}
+            onChange={(e) => {
+              setSortOrder(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#1000a3] transition-all outline-none"
+          >
+            <option value="newest">Sort: Newest First</option>
+            <option value="oldest">Sort: Oldest First</option>
+            <option value="alphabetical">Sort: Alphabetical A-Z</option>
+          </select>
+
+          {/* Search */}
+          <div className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by title, author..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1000a3] transition-all outline-none"
+            />
+          </div>
         </div>
       </div>
 
@@ -291,24 +338,26 @@ export default function AdminCommunityPosts() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
-                {filteredPosts.map((post) => (
-                  <tr key={post._id || post.id} className="hover:bg-slate-50/40 transition-colors">
+                {filteredPosts.map((post) => {
+                  const isOwnPost = post.author?._id === user?.id || post.author?.id === user?.id || post.author?.email === user?.email;
+                  return (
+                    <tr 
+                      key={post._id || post.id} 
+                      className={cn(
+                        "hover:bg-slate-50/40 transition-colors",
+                        isOwnPost && "border-l-4 border-l-blue-500 bg-blue-50/10"
+                      )}
+                    >
                     <td className="px-6 py-4 max-w-sm">
                       <div className="flex flex-col gap-1">
                         <span 
                           className="font-bold text-slate-800 line-clamp-1 hover:text-[#1000a3] cursor-pointer flex items-center gap-1"
                           onClick={() => {
-                            if (post.isPublic && post.moderationStatus === "approved") {
-                              window.open(`/community/post/${post._id || post.id}`, "_blank");
-                            } else {
-                              toast.error("This post is hidden or not approved and cannot be viewed publicly.");
-                            }
+                            window.open(`/admin/posts/${post._id || post.id}`, "_blank");
                           }}
                         >
                           {post.title}
-                          {post.isPublic && post.moderationStatus === "approved" && (
-                            <ExternalLink className="w-3 h-3 text-slate-400 inline" />
-                          )}
+                          <ExternalLink className="w-3 h-3 text-slate-400 inline" />
                         </span>
                         <span className="text-[10px] text-slate-400">
                           {new Date(post.createdAt).toLocaleDateString("en-US")} • {post.readingTime || 1} min read
@@ -368,7 +417,7 @@ export default function AdminCommunityPosts() {
                         )}
                         
                         {/* Edit, Set Private, Delete */}
-                        {post.isPublic && post.moderationStatus === "approved" && (
+                        {post.isPublic && (
                           <button
                             onClick={() => handleHidePost(post._id || post.id)}
                             className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
@@ -396,7 +445,8 @@ export default function AdminCommunityPosts() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>

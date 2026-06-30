@@ -40,6 +40,7 @@ export default function CommunityEditor() {
   const [coverImage, setCoverImage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [isPublicState, setIsPublicState] = useState(false);
+  const [authorId, setAuthorId] = useState<string>("");
 
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
 
@@ -56,6 +57,7 @@ export default function CommunityEditor() {
             setDifficulty(post.difficulty);
             setCoverImage(post.coverImage || "");
             setIsPublicState(post.isPublic || false);
+            setAuthorId(typeof post.author === "string" ? post.author : (post.author?._id || ""));
           }
         } catch (err: any) {
           console.error(err);
@@ -333,16 +335,17 @@ export default function CommunityEditor() {
               }}
               className="px-5 py-2.5 border border-slate-200 rounded-full font-bold text-xs text-slate-500 hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              Hủy bỏ
+              Cancel
             </button>
-            {!(isEditMode && user?.role === "admin") && (
+            {/* Hide Save Draft when admin is editing another user's post (prevents setting it to private) */}
+            {!(isEditMode && user?.role === "admin" && authorId && authorId !== user.id) && (
               <button
                 type="button"
                 disabled={submitting}
                 onClick={() => handlePublish(false)}
                 className="px-5 py-2.5 border border-[#4648d4] text-[#4648d4] hover:bg-purple-50/50 rounded-full font-bold text-xs transition-all disabled:opacity-50 cursor-pointer"
               >
-                {isEditMode ? "Lưu riêng tư" : "Lưu bản nháp"}
+                Save Draft
               </button>
             )}
             <button
@@ -351,7 +354,7 @@ export default function CommunityEditor() {
               onClick={() => handlePublish(true)}
               className="px-5 py-2.5 bg-[#4648d4] text-white rounded-full font-bold text-xs shadow-md hover:bg-indigo-600 transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
             >
-              {isEditMode ? "Lưu & Công khai" : "Đăng bài viết"}
+              {isEditMode ? "Save & Publish" : "Publish Post"}
             </button>
           </div>
         </div>

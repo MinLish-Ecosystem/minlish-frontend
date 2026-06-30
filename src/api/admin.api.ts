@@ -50,6 +50,17 @@ export const getSystemConfig = () =>
 export const updateSystemConfig = (payload: Partial<SystemConfigData>) =>
   api.put<ApiResponse<SystemConfigData>>('/api/v1/admin/config', payload);
 
+export const getSystemHealth = () =>
+  api.get<ApiResponse<{
+    mongodb: boolean;
+    redis: boolean;
+    gemini: boolean;
+    mailer: boolean;
+    cloudinary: boolean;
+    redisConfigured: boolean;
+  }>>('/api/v1/admin/health');
+
+
 // ─── Moderation ───────────────────────────────────────────────────────────────
 export const getPendingSets = () =>
   api.get<ApiResponse<any[]>>('/api/v1/admin/moderation/pending');
@@ -70,5 +81,5 @@ export const getPendingPosts = () =>
 export const overridePostModeration = (payload: { postId: string; status: 'approved' | 'rejected'; reason: string }) =>
   api.put<ApiResponse<any>>('/api/v1/admin/moderation/posts/override', payload);
 
-export const listAllPosts = (page: number = 1, limit: number = 20, tab: 'published' | 'drafts' | 'pending' | 'moderated' = 'published', q?: string) =>
-  api.get<ApiResponse<any>>('/api/v1/admin/posts', { params: { page, limit, tab, q } });
+export const listAllPosts = (page: number = 1, limit: number = 20, tab: 'published' | 'drafts' | 'pending' | 'moderated' = 'published', q?: string, sort?: string, status?: string) =>
+  api.get<ApiResponse<any>>('/api/v1/admin/posts', { params: { page, limit, tab, q, sort, status } });

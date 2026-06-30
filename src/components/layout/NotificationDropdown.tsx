@@ -53,15 +53,52 @@ export default function NotificationDropdown() {
 
   const latestNotifications = filteredNotifications.slice(0, 5);
 
+  // ─── Initial load ─────────────────────────────────────────────────────────
   useEffect(() => {
     dispatch(fetchUnreadCount());
   }, [dispatch]);
 
+  // ─── Open dropdown → fetch full list ──────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
       dispatch(fetchNotifications({ page: 1, limit: 20 }));
     }
   }, [isOpen, dispatch]);
+
+  // ─── Smart polling: every 30s, only when tab is active ────────────────────
+  useEffect(() => {
+    const POLL_INTERVAL = 30_000; // 30 seconds
+
+    const poll = async () => {
+      // Only poll if the browser tab is visible
+      if (document.visibilityState !== "visible") return;
+
+      const prevCount = unreadCount;
+      const result = await dispatch(fetchUnreadCount());
+
+      // If new unread count is higher → new notification arrived
+      if (result.payload && (result.payload as any).unreadCount > prevCount) {
+        // If dropdown is open, also refresh full list immediately
+        if (isOpen) {
+          dispatch(fetchNotifications({ page: 1, limit: 20 }));
+        }
+      }
+    };
+
+    const intervalId = setInterval(poll, POLL_INTERVAL);
+
+    // Also re-poll immediately when tab becomes visible again
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") poll();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [dispatch, unreadCount, isOpen]);
+
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -84,10 +121,16 @@ export default function NotificationDropdown() {
 
     if (isAdmin) {
       if (type === "ai_moderation") {
-        // Navigate to content moderation page
-        navigate("/admin/moderation");
+        // Navigate to content moderation scan log tab, highlight the specific log
+        const outerType = data.moderationType === "post" ? "posts" : "sets";
+        const logId = data.logId || "";
+        const params = new URLSearchParams({ tab: "ai_logs", type: outerType });
+        if (logId) params.set("highlightId", logId);
+        navigate(`/admin/moderation?${params.toString()}`);
+      } else if (type === "report") {
+        // Navigate to admin notifications page, highlight the specific report
+        navigate(`/admin/notifications?highlightId=${notif._id}`);
       }
-      // For "report" type: read-only, no navigation
       return;
     }
 

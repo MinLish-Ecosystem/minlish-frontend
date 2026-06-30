@@ -18,6 +18,7 @@ export default function AdminVocabularySets() {
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [activeCategory, setActiveCategory] = useState<VocabCategory | "">("");
+  const [sortOrder, setSortOrder] = useState("newest");
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -35,6 +36,7 @@ export default function AdminVocabularySets() {
         params: {
           q: q.trim() || undefined,
           category: activeCategory || undefined,
+          sort: sortOrder,
           limit: 100
         }
       });
@@ -57,7 +59,7 @@ export default function AdminVocabularySets() {
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [q, activeCategory]);
+  }, [q, activeCategory, sortOrder]);
 
   const handleCreateSet = async () => {
     if (!form.name.trim()) {
@@ -166,37 +168,74 @@ export default function AdminVocabularySets() {
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col md:flex-row gap-4 items-center justify-between border border-slate-200">
-        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-          {categoryPills.map((category) => {
-            const isActive = activeCategory === category || (!category && activeCategory === "");
+      {/* Styles to hide scrollbar */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}} />
 
-            return (
-              <button
-                key={category || "all"}
-                onClick={() => setActiveCategory(category)}
-                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                  isActive
-                    ? "bg-purple-600 text-white shadow-sm"
-                    : "bg-slate-50 text-slate-800 border border-slate-200 hover:bg-slate-100"
-                }`}
-              >
-                {category || "All Sets"}
-              </button>
-            );
-          })}
+      {/* Redesigned Filters & Search Panel */}
+      <div className="bg-white border border-[#c7c4d7]/40 rounded-3xl p-6 shadow-sm mb-8 space-y-4">
+        {/* Top Row: Search & Sort */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <input 
+              type="text" 
+              placeholder="Search sets..." 
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all outline-none"
+            />
+          </div>
+          
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0">Sort By</span>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all outline-none cursor-pointer"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="alphabetical">Alphabetical A-Z</option>
+            </select>
+          </div>
         </div>
-        
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="Search sets..." 
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-white focus:border-purple-600 focus:ring-4 focus:ring-purple-100 transition-all text-sm outline-none"
-          />
+
+        {/* Divider */}
+        <div className="h-px bg-slate-100" />
+
+        {/* Bottom Row: Category Pills */}
+        <div className="relative">
+          {/* Left/Right Fade Indicators */}
+          <div className="absolute left-0 top-0 bottom-0 w-4 bg-linear-to-r from-white to-transparent pointer-events-none z-10" />
+          <div className="absolute right-0 top-0 bottom-0 w-4 bg-linear-to-l from-white to-transparent pointer-events-none z-10" />
+          
+          <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+            {categoryPills.map((category) => {
+              const isActive = activeCategory === category || (!category && activeCategory === "");
+
+              return (
+                <button
+                  key={category || "all"}
+                  onClick={() => setActiveCategory(category)}
+                  className={`whitespace-nowrap px-4 py-2 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                    isActive
+                      ? "bg-purple-600 text-white shadow-sm shadow-purple-200 scale-[1.02]"
+                      : "bg-slate-50 text-slate-600 hover:text-slate-800 border border-slate-100 hover:bg-slate-100"
+                  }`}
+                >
+                  {category || "All Categories"}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
