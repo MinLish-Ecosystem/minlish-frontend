@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 import { extractFieldErrors, getErrorMessage, FieldErrors } from "../../lib/formErrors";
 import { getProfile, updateProfile, requestEmailChange, confirmEmailChange, getLearningProfile, updateLearningProfile, LearningProfile } from "../../api/user.api";
 import { ConfirmLogoutModal } from "../../components/common";
+import { getDashboardStats } from "../../api/stats.api";
 
 export default function Settings() {
   const { user, updateUser, logout } = useAuth();
@@ -83,6 +84,9 @@ export default function Settings() {
     reminderTime: "20:00",
   });
 
+  // Load streak state
+  const [streak, setStreak] = useState<number | null>(null);
+
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -128,8 +132,20 @@ export default function Settings() {
       }
     };
 
+    const loadStats = async () => {
+      try {
+        const response = await getDashboardStats();
+        if (response.data.success && response.data.data) {
+          setStreak(response.data.data.streak?.current ?? 0);
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard stats:", error);
+      }
+    };
+
     loadProfile();
     loadLearningProfile();
+    loadStats();
   }, [hasEditedProfile, updateUser]);
 
   const handleSave = async () => {
@@ -554,7 +570,7 @@ export default function Settings() {
             <div className="relative z-10">
               <h4 className="font-label-md text-label-md font-semibold opacity-90 mb-1">Current Streak</h4>
               <div className="flex items-baseline gap-2">
-                <span className="font-display-lg text-display-lg font-bold">14</span>
+                <span className="font-display-lg text-display-lg font-bold">{streak !== null ? streak : "..."}</span>
                 <span className="font-body-md text-body-md opacity-90">Days</span>
               </div>
             </div>
