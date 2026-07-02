@@ -135,8 +135,20 @@ export default function NotificationDropdown() {
     }
 
     // User navigation logic
-    if (data.setId) {
-      navigate(`/vocabulary/${data.setId}`);
+    if (data.postId || type === "posts_interaction" || type === "post_moderation") {
+      const postId = data.postId || (data.post && (data.post._id || data.post));
+      if (postId) {
+        navigate(`/community/post/${postId}`);
+      } else {
+        navigate("/community");
+      }
+    } else if (data.setId || type === "vocab_moderation") {
+      const setId = data.setId || (data.set && (data.set._id || data.set));
+      if (setId) {
+        navigate(`/vocabulary/${setId}`);
+      } else {
+        navigate("/vocabulary");
+      }
     } else if (type === "daily_reminder" || type === "review_due") {
       navigate("/dashboard");
     } else if (type === "streak_milestone" || type === "achievement") {
