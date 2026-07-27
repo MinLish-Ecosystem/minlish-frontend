@@ -6,6 +6,7 @@ import api from "../../lib/api";
 import { fetchSetDetail, fetchVocabSets, VocabSet, Word, VocabCategory, VocabLevel, ColorTheme } from "../../store/slices/vocabSlice";
 import { AppDispatch, RootState } from "../../store";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+import { lookupWordApi, batchLookupApi } from "../../api/dictionary.api";
 
 // Extended interface for managing local drafts of words
 interface DraftWord {
@@ -409,31 +410,24 @@ export default function CreateEditVocabSet() {
       return;
     }
     setModalLoading(true);
-    try {
-      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(lookup)}`);
-      if (!res.ok) {
-        throw new Error("Word not found in dictionary");
-      }
-      const data = await res.json();
-      const details = parseDictionaryEntry(data);
-      if (details) {
+    try{
+      const details = await lookupWordApi(lookup);
+      if (details && details.found){
         setModalWordData((prev) => ({
           ...prev,
           meaning: details.meaning,
-          partOfSpeech: details.partOfSpeech,
-          pronunciation: details.pronunciation,
-          example: details.example,
-          audioUrl: details.audioUrl,
-          descriptionEN: details.descriptionEN,
-          synonyms: details.synonyms.join(", "),
-          antonyms: details.antonyms.join(", ")
+          partOfSpeech: details.partOfSpeech || "noun",
+          pronunciation: details.pronunciation || "",
+          example: details.examples?.[0] || "",
+          audioUrl: details.audioUrl || "",
+          descriptionEN: details.descriptionEN || "",
         }));
-        toast.success("Dictionary details auto-filled!");
+        toast.success(`Auto-filled from ${details.provider}!`);
       } else {
-        toast.error("Could not parse dictionary details");
+        toast.error("Cound not find definition for this word");
       }
-    } catch (err) {
-      toast.error("Could not find dictionary details for this word");
+    } catch (err){
+      toast.error("Cound not find dictionary details for this word");
     } finally {
       setModalLoading(false);
     }
@@ -713,47 +707,45 @@ export default function CreateEditVocabSet() {
   const handleBatchAutoLookup = async () => {
     if (previewItems.length === 0) return;
     setBatchLookupLoading(true);
-    let successCount = 0;
-    let failedCount = 0;
-
-    const updated = [...previewItems];
-    for (let i = 0; i < updated.length; i++) {
-      const item = updated[i];
-      if (!item.meaning || item.meaning.trim() === "") {
-        try {
-          const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(item.word.trim())}`);
-          if (res.ok) {
-            const data = await res.json();
-            const details = parseDictionaryEntry(data);
-            if (details) {
-              updated[i] = {
-                ...item,
-                meaning: details.meaning,
-                partOfSpeech: details.partOfSpeech,
-                pronunciation: details.pronunciation,
-                example: details.example,
-                audioUrl: details.audioUrl,
-                synonyms: details.synonyms,
-                antonyms: details.antonyms,
-                descriptionEN: details.descriptionEN,
-                isValid: item.word.trim().length > 0 && details.meaning.trim().length > 0
-              };
-              successCount++;
-            } else {
-              failedCount++;
-            }
-          } else {
+    try {
+      const missingItems = previewItems.filter(item => !item.meaning || item.meaning.trim() === "");
+      const wordsToLookup = missingItems.map(item => item.word);
+      if (wordsToLookup.length === 0){
+        toast.success("All words already have meanings!");
+        setBatchLookupLoading(false);
+        return;
+      }
+      const results = await batchLookupApi(wordsToLookup);
+      let successCount = 0;
+      let failedCount = 0;
+      const updated = previewItems.map((item) => {
+        if (!item.meaning || item.meaning.trim() === "") {
+          const match = results.find((r) => r.word.toLowerCase() === item.word.trim().toLowerCase());
+          if (match && match.found){
+            successCount++;
+            return{
+              ...item,
+              meaning: match.meaning,
+              partOfSpeech: match.partOfSpeech || "noun",
+              pronunciation: match.pronunciation || "",
+              example: match.examples?.[0] || "",
+              audioUrl: match.audioUrl || "",
+              descriptionEN: match.descriptionEN || "",
+              isValid: item.word.trim().length > 0 && match.meaning.trim().length > 0,
+            };
+          } else{
             failedCount++;
           }
-        } catch (e) {
-          failedCount++;
         }
-      }
+        return item;
+      });
+      setPreviewItems(updated);
+      toast.success(`Batch dictionary lookup: ${successCount} words filled, ${failedCount} failed.`);
+    } catch (err) {
+      toast.error("Failed to perform batch auto-fill");
+    } finally {
+      setBatchLookupLoading(false);
     }
-
-    setPreviewItems(updated);
-    setBatchLookupLoading(false);
-    toast.success(`Batch dictionary lookup: ${successCount} words filled, ${failedCount} failed.`);
   };
 
   // Helper to check if a word is duplicate in drafts or within preview

@@ -434,9 +434,6 @@ export default function Statistics() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-lg font-bold text-slate-800 mb-0.5">Daily Activity</h3>
-            <p className="text-xs text-slate-400">
-              {heatmapData.reduce((s, h) => s + (h.count || 0), 0).toLocaleString()} reviews in the last year
-            </p>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-slate-400 font-semibold select-none">
             <span>Less</span>
