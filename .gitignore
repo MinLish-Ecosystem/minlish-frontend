@@ -1,21 +1,66 @@
-# Dependencies
 node_modules/
 
-# Build output  
 dist/
+build/
 
-# Env files — KHÔNG commit lên Git!
 .env
 .env.local
 .env.production.local
+.env.*.local
 
-# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# OS
+coverage/
+.nyc_output/
+
 .DS_Store
 Thumbs.db
+desktop.ini
+~$*.docx
 
-# Editor
 .vscode/
 .idea/
+*.swp
+*.swo
+
+_bmad/
+_bmad-output/
+_bmad*/
+.bmad*/
+
+implementation_plan.md
+Phase0.md
+
+.qoder/
+.github/agents/
+.adal/
+.agent/
+.agents/
+.claude/
+.cline/
+.codebuddy/
+.codewhale/
+.bob/
+.factory/
+.firebender/
+.iflow/
+.junie/
+.kiro/
+.kode/
+.neovate/
+.ona/
+.opencode/
+.cursor/
+.windsurf/
+.trae/
+.augment/
+.roo/
+.continue/
+.copilot/
+.gemini/
+.aider*
+CLAUDE.md
