@@ -34,6 +34,7 @@ export default function VocabularySets() {
         fetchVocabSets({
           q: q.trim() || undefined,
           category: activeCategory || undefined,
+          limit: 100,
         })
       );
     }, 300);
