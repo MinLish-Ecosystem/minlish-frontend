@@ -57,6 +57,9 @@ const FlashcardSession = lazy(() => import("./pages/learn/FlashcardSession"));
 const Practice = lazy(() => import("./pages/practice/Practice"));
 const PracticeSession = lazy(() => import("./pages/practice/PracticeSession"));
 
+// Voice AI
+const VoiceAIChat = lazy(() => import("./pages/voiceai/VoiceAIChat"));
+
 // ─── Shared loading fallback ──────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -274,14 +277,22 @@ export default function App() {
               }
             />
             <Route
-              path="/practice/session"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <PracticeSession />
-                </Suspense>
-              }
-            />
-            <Route path="/" element={<RootRedirect />} />
+                          path="/practice/session"
+                          element={
+                            <Suspense fallback={<PageLoader />}>
+                              <PracticeSession />
+                            </Suspense>
+                          }
+                        />
+                        <Route
+                          path="/voice-ai"
+                          element={
+                            <Suspense fallback={<PageLoader />}>
+                              <VoiceAIChat />
+                            </Suspense>
+                          }
+                        />
+                        <Route path="/" element={<RootRedirect />} />
           </Route>
 
           {/* Admin Routes */}
