@@ -12,7 +12,8 @@ import {
   Search,
   HelpCircle,
   Zap,
-  FolderHeart
+    FolderHeart,
+  Headphones
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { cn } from "../../lib/utils";
@@ -82,6 +83,7 @@ export default function MainLayout() {
           <SidebarItem to="/community" icon={Users} label="Community" />
           <SidebarItem to="/my-content" icon={FolderHeart} label="My Content" />
           <SidebarItem to="/practice" icon={BrainCircuit} label="Practice" />
+          <SidebarItem to="/listening" icon={Headphones} label="Listening" />
           <SidebarItem to="/statistics" icon={BarChart3} label="Statistics" />
         </nav>
 
