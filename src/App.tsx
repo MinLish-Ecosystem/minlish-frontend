@@ -56,6 +56,7 @@ const FlashcardSession = lazy(() => import("./pages/learn/FlashcardSession"));
 // Practice
 const Practice = lazy(() => import("./pages/practice/Practice"));
 const PracticeSession = lazy(() => import("./pages/practice/PracticeSession"));
+const Writing = lazy(() => import("./pages/practice/Writing"));
 
 // ─── Shared loading fallback ──────────────────────────────────────────────────
 function PageLoader() {
@@ -274,13 +275,21 @@ export default function App() {
               }
             />
             <Route
-              path="/practice/session"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <PracticeSession />
-                </Suspense>
-              }
-            />
+                          path="/practice/session"
+                          element={
+                            <Suspense fallback={<PageLoader />}>
+                              <PracticeSession />
+                            </Suspense>
+                          }
+                        />
+                        <Route
+                          path="/practice/writing"
+                          element={
+                            <Suspense fallback={<PageLoader />}>
+                              <Writing />
+                            </Suspense>
+                          }
+                        />
             <Route path="/" element={<RootRedirect />} />
           </Route>
 
