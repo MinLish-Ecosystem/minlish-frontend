@@ -53,6 +53,9 @@ const ExploreSetDetail = lazy(() => import("./pages/explore/ExploreSetDetail"));
 // Learn
 const FlashcardSession = lazy(() => import("./pages/learn/FlashcardSession"));
 
+// Listening
+const Listening = lazy(() => import("./pages/listening/Listening"));
+
 // Practice
 const Practice = lazy(() => import("./pages/practice/Practice"));
 const PracticeSession = lazy(() => import("./pages/practice/PracticeSession"));
@@ -273,11 +276,19 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route
+                        <Route
               path="/practice/session"
               element={
                 <Suspense fallback={<PageLoader />}>
                   <PracticeSession />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/listening"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <Listening />
                 </Suspense>
               }
             />
