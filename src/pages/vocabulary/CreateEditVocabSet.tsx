@@ -418,9 +418,9 @@ export default function CreateEditVocabSet() {
           meaning: details.meaning,
           partOfSpeech: details.partOfSpeech || "noun",
           pronunciation: details.pronunciation || "",
-          example: details.examples?.[0] || "",
+          example: details.example?.[0] || "",
           audioUrl: details.audioUrl || "",
-          descriptionEN: details.descriptionEN || "",
+          descriptionEN: (details as any).descriptionEN || "",
         }));
         toast.success(`Auto-filled from ${details.provider}!`);
       } else {
@@ -728,9 +728,9 @@ export default function CreateEditVocabSet() {
               meaning: match.meaning,
               partOfSpeech: match.partOfSpeech || "noun",
               pronunciation: match.pronunciation || "",
-              example: match.examples?.[0] || "",
+              example: match.example?.[0] || "",
               audioUrl: match.audioUrl || "",
-              descriptionEN: match.descriptionEN || "",
+              descriptionEN: (match as any).descriptionEN || "",
               isValid: item.word.trim().length > 0 && match.meaning.trim().length > 0,
             };
           } else{
