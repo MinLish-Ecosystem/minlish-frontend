@@ -17,3 +17,6 @@ export { default as FormError } from "./FormError";
 export { default as ScrollToTop } from "./ScrollToTop";
 export { default as ReportModal } from "./ReportModal";
 export { default as ConfirmLogoutModal } from "./ConfirmLogoutModal";
+export { AuraRobotCanvas } from "./AuraRobotCanvas";
+export { AuraFloatingWidget } from "./AuraFloatingWidget";
+export { AuraLiveVoiceModal } from "./AuraLiveVoiceModal";
