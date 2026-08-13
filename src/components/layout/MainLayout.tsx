@@ -20,7 +20,7 @@ import { cn } from "../../lib/utils";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store";
 import NotificationDropdown from "./NotificationDropdown";
-import { ConfirmLogoutModal, ReportModal } from "../common";
+import { ConfirmLogoutModal, ReportModal, AuraFloatingWidget, AuraLiveVoiceModal } from "../common";
 import { useState } from "react";
 
 const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
@@ -45,6 +45,7 @@ export default function MainLayout() {
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -149,6 +150,10 @@ export default function MainLayout() {
           <ScrollToTop />
         </main>
       </div>
+
+      {/* Aura Robot Floating Assistant Widget & Voice Modal */}
+      <AuraFloatingWidget onOpenModal={() => setShowVoiceModal(true)} />
+      <AuraLiveVoiceModal isOpen={showVoiceModal} onClose={() => setShowVoiceModal(false)} />
 
       {/* Confirm Logout Modal */}
       <ConfirmLogoutModal
