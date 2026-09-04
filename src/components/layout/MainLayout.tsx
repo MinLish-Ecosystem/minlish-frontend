@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import ScrollToTop from "../common/ScrollToTop";
 import { 
   LayoutDashboard, 
@@ -41,6 +41,10 @@ const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: 
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Trang voice-chat đã có gấu bự giữa màn hình — ẩn widget Aura góc phải cho khỏi trùng
+  const hideAuraWidget =
+    location.pathname.startsWith('/voice-chat') || location.pathname.startsWith('/voice-ai');
   const { sets } = useSelector((state: RootState) => state.vocab);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -84,7 +88,7 @@ export default function MainLayout() {
           <SidebarItem to="/community" icon={Users} label="Community" />
           <SidebarItem to="/my-content" icon={FolderHeart} label="My Content" />
           <SidebarItem to="/practice" icon={BrainCircuit} label="Practice" />
-          <SidebarItem to="/voice-ai" icon={Mic} label="Voice AI" />
+          <SidebarItem to="/voice-chat" icon={Mic} label="Voice AI" />
           <SidebarItem to="/statistics" icon={BarChart3} label="Statistics" />
         </nav>
 
@@ -152,7 +156,7 @@ export default function MainLayout() {
       </div>
 
       {/* Aura Robot Floating Assistant Widget & Voice Modal */}
-      <AuraFloatingWidget onOpenModal={() => setShowVoiceModal(true)} />
+      {!hideAuraWidget && <AuraFloatingWidget onOpenModal={() => setShowVoiceModal(true)} />}
       <AuraLiveVoiceModal isOpen={showVoiceModal} onClose={() => setShowVoiceModal(false)} />
 
       {/* Confirm Logout Modal */}

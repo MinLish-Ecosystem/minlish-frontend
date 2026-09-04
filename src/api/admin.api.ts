@@ -42,6 +42,7 @@ export interface SystemConfigData {
   srsInitialInterval: number;
   moderationInterval: number;
   aiModerationGuidelines: string;
+  voiceAiSystemPrompt: string;
 }
 
 export const getSystemConfig = () =>

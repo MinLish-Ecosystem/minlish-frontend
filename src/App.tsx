@@ -57,7 +57,8 @@ const FlashcardSession = lazy(() => import("./pages/learn/FlashcardSession"));
 const Practice = lazy(() => import("./pages/practice/Practice"));
 const PracticeSession = lazy(() => import("./pages/practice/PracticeSession"));
 
-// Voice AI
+// Voice AI (UC-13) — page moi theo spec; route cu /voice-ai giu tuong thich nguoc
+const VoiceChatPage = lazy(() => import("./pages/voiceai/VoiceChatPage"));
 const VoiceAIChat = lazy(() => import("./pages/voiceai/VoiceAIChat"));
 
 // ─── Shared loading fallback ──────────────────────────────────────────────────
@@ -284,6 +285,16 @@ export default function App() {
                             </Suspense>
                           }
                         />
+                        {/* UC-13 Voice AI — route chuẩn theo FE spec đã chốt */}
+                        <Route
+                          path="/voice-chat"
+                          element={
+                            <Suspense fallback={<PageLoader />}>
+                              <VoiceChatPage />
+                            </Suspense>
+                          }
+                        />
+                        {/* Route cũ giữ tương thích ngược — redirect sang /voice-chat */}
                         <Route
                           path="/voice-ai"
                           element={
