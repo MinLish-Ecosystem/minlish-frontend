@@ -32,9 +32,12 @@ import {
 import type { VocabBonusLists } from '../../components/features/voice-ai/hooks/useSpeechScoring';
 import type { AvatarState, ChatMessage, MicState } from '../../components/features/voice-ai/types';
 import {
+  consumePendingSwitchReload,
   getCachedTierId,
+  isTierCacheStale,
   isTierCached,
   purgeAllWeights,
+  setPendingSwitchReload,
   verifyLlmBlob,
 } from '../../components/features/voice-ai/services/weightsCache';
 import { getLastBackendDecision, getLastLlmSource } from '../../components/features/voice-ai/services/onDeviceRuntime';
@@ -221,12 +224,17 @@ export default function VoiceChatPage() {
     if (sessionStarted || sessionComplete || !activeTier) return;
     const ready = await ensureRuntimeReady();
     if (!ready) return;
-    // Chưa có weights (hoặc blob LLM đã bị browser evict dù metadata còn) → tải xong mới vào phiên
-    if (!isTierCached(activeTier._id) || !(await verifyLlmBlob(activeTier._id))) {
+    // Chưa có weights / blob LLM bị evict / cache stale (admin up weights mới → version lệch) → tải lại
+    if (isTierCacheStale(activeTier)) {
+      toast('Model đã có phiên bản mới, đang tải lại weights…', { icon: '⬇️' });
+      await purgeAllWeights();
+    } else if (!isTierCached(activeTier._id) || !(await verifyLlmBlob(activeTier._id))) {
       if (isTierCached(activeTier._id)) {
         toast('Weights LLM bị thiếu trong cache, đang tải lại…', { icon: '⬇️' });
         await purgeAllWeights();
       }
+    }
+    if (!isTierCached(activeTier._id)) {
       if (downloadState !== 'idle' && downloadState !== 'error') return;
       const success = await startDownload(activeTier);
       if (!success) return; // lỗi tải → ở màn chọn tier, có nút retry
@@ -397,20 +405,32 @@ export default function VoiceChatPage() {
     processUserTurn,
   ]);
 
-  // AF-01: confirm đổi tier → purge toàn bộ weights cũ → tải mới
-  const handleConfirmSwitch = useCallback(async () => {
-    const targetTierId = pendingTierId;
-    confirmSwitch();
-    if (!targetTierId) return;
-    await purgeAllWeights();
-    const nextTier = tiers.find((t) => t._id === targetTierId);
-    if (nextTier) {
+  // AF-01: confirm đổi tier → ghi flag tier đích → RELOAD nguyên trang.
+  // Sau reload, auto-switch effect bên dưới purge weights cũ rồi tự tải weights mới.
+  const handleConfirmSwitch = useCallback(() => {
+    if (!pendingTierId) return;
+    confirmSwitch(); // set activeTierId mới (persist localStorage) + đóng modal
+    setPendingSwitchReload(pendingTierId);
+    window.location.reload();
+  }, [confirmSwitch, pendingTierId]);
+
+  // AF-01 (flow reload): sau khi trang reload do confirm đổi tier, đợi catalog
+  // load xong rồi purge toàn bộ weights cũ + tự tải weights tier mới. Flag chỉ
+  // consume khi đã có tiers (tránh mount sớm với catalog rỗng).
+  useEffect(() => {
+    if (catalogLoading || tiers.length === 0) return;
+    const pendingTierIdFromReload = consumePendingSwitchReload();
+    if (!pendingTierIdFromReload) return;
+    const nextTier = tiers.find((t) => t._id === pendingTierIdFromReload);
+    if (!nextTier) return; // tier không còn trong catalog — flag đã consume, bỏ qua
+    void (async () => {
+      await purgeAllWeights();
       const success = await startDownload(nextTier);
       if (success) {
-        toast.success(`Đã đổi sang tier ${nextTier.name}`);
+        toast.success(`Đã đổi sang tier ${nextTier.name} — bấm Play để bắt đầu`);
       }
-    }
-  }, [confirmSwitch, pendingTierId, tiers, startDownload]);
+    })();
+  }, [catalogLoading, tiers, startDownload]);
 
   const handleRetry = useCallback(() => {
     if (!activeTier) return;
@@ -456,9 +476,6 @@ export default function VoiceChatPage() {
   useEffect(() => {
     return () => stopSpeaking();
   }, [stopSpeaking]);
-
-  const fromTierName = activeTier?.name ?? '';
-  const toTierName = tiers.find((t) => t._id === pendingTierId)?.name ?? '';
 
   return (
     <div className="max-w-3xl mx-auto pb-12">
@@ -681,8 +698,6 @@ export default function VoiceChatPage() {
 
       <SwitchTierConfirmModal
         open={switchConfirmVisible}
-        fromTierName={fromTierName}
-        toTierName={toTierName}
         onConfirm={() => void handleConfirmSwitch()}
         onCancel={cancelSwitch}
       />

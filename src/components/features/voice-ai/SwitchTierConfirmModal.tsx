@@ -1,19 +1,17 @@
 /**
  * UC-13 Voice AI — Modal xác nhận đổi tier (AF-01, BR-03, CAP-05).
- * Đồng ý = purge toàn bộ weights mọi tier khác rồi tải mới; Escape/hủy = giữ tier cũ.
+ * Hỏi đơn giản "Bạn có chắc muốn thay đổi mức cấu hình không?" — Có = purge toàn bộ weights rồi tải mới; Không/Escape = giữ tier cũ.
  */
 import { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 
 interface SwitchTierConfirmModalProps {
   open: boolean;
-  fromTierName: string;
-  toTierName: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function SwitchTierConfirmModal({ open, fromTierName, toTierName, onConfirm, onCancel }: SwitchTierConfirmModalProps) {
+export function SwitchTierConfirmModal({ open, onConfirm, onCancel }: SwitchTierConfirmModalProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -51,8 +49,7 @@ export function SwitchTierConfirmModal({ open, fromTierName, toTierName, onConfi
           >
             <h3 className="text-base font-black text-slate-800 mb-2">Đổi mức cấu hình?</h3>
             <p className="text-sm text-slate-500 leading-relaxed mb-5">
-              Đổi tier sẽ xóa toàn bộ weights hiện tại (<strong>{fromTierName}</strong>) và tải model mới (
-              <strong>{toTierName}</strong>). Tiếp tục?
+              Bạn có chắc muốn thay đổi mức cấu hình không?
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -61,14 +58,14 @@ export function SwitchTierConfirmModal({ open, fromTierName, toTierName, onConfi
                 onClick={onCancel}
                 className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                Hủy
+                Không
               </button>
               <button
                 type="button"
                 onClick={onConfirm}
                 className="px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:shadow-purple-300 transition-all cursor-pointer"
               >
-                Tiếp tục
+                Có
               </button>
             </div>
           </motion.div>
