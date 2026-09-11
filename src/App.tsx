@@ -57,6 +57,9 @@ const FlashcardSession = lazy(() => import("./pages/learn/FlashcardSession"));
 const Practice = lazy(() => import("./pages/practice/Practice"));
 const PracticeSession = lazy(() => import("./pages/practice/PracticeSession"));
 
+// Voice AI (UC-13) — page duy nhất theo spec; route cũ /voice-ai redirect về /voice-chat
+const VoiceChatPage = lazy(() => import("./pages/voiceai/VoiceChatPage"));
+
 // ─── Shared loading fallback ──────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -274,14 +277,25 @@ export default function App() {
               }
             />
             <Route
-              path="/practice/session"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <PracticeSession />
-                </Suspense>
-              }
-            />
-            <Route path="/" element={<RootRedirect />} />
+                          path="/practice/session"
+                          element={
+                            <Suspense fallback={<PageLoader />}>
+                              <PracticeSession />
+                            </Suspense>
+                          }
+                        />
+                        {/* UC-13 Voice AI — route chuẩn theo FE spec đã chốt */}
+                        <Route
+                          path="/voice-chat"
+                          element={
+                            <Suspense fallback={<PageLoader />}>
+                              <VoiceChatPage />
+                            </Suspense>
+                          }
+                        />
+                        {/* Route cũ /voice-ai — prototype đã chết (BE không có /chat, tier sai ObjectId); redirect sang /voice-chat */}
+                        <Route path="/voice-ai" element={<Navigate to="/voice-chat" replace />} />
+                        <Route path="/" element={<RootRedirect />} />
           </Route>
 
           {/* Admin Routes */}

@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import ScrollToTop from "../common/ScrollToTop";
 import { 
   LayoutDashboard, 
@@ -12,14 +12,15 @@ import {
   Search,
   HelpCircle,
   Zap,
-  FolderHeart
+  FolderHeart,
+  Mic
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { cn } from "../../lib/utils";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store";
 import NotificationDropdown from "./NotificationDropdown";
-import { ConfirmLogoutModal, ReportModal } from "../common";
+import { ConfirmLogoutModal, ReportModal, AuraFloatingWidget, AuraLiveVoiceModal } from "../common";
 import { useState } from "react";
 
 const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
@@ -40,10 +41,15 @@ const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: 
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Trang voice-chat đã có gấu bự giữa màn hình — ẩn widget Aura góc phải cho khỏi trùng
+  // (/voice-ai giờ chỉ redirect về /voice-chat nên không cần check riêng)
+  const hideAuraWidget = location.pathname.startsWith('/voice-chat');
   const { sets } = useSelector((state: RootState) => state.vocab);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -82,6 +88,7 @@ export default function MainLayout() {
           <SidebarItem to="/community" icon={Users} label="Community" />
           <SidebarItem to="/my-content" icon={FolderHeart} label="My Content" />
           <SidebarItem to="/practice" icon={BrainCircuit} label="Practice" />
+          <SidebarItem to="/voice-chat" icon={Mic} label="Voice AI" />
           <SidebarItem to="/statistics" icon={BarChart3} label="Statistics" />
         </nav>
 
@@ -147,6 +154,10 @@ export default function MainLayout() {
           <ScrollToTop />
         </main>
       </div>
+
+      {/* Aura Robot Floating Assistant Widget & Voice Modal */}
+      {!hideAuraWidget && <AuraFloatingWidget onOpenModal={() => setShowVoiceModal(true)} />}
+      <AuraLiveVoiceModal isOpen={showVoiceModal} onClose={() => setShowVoiceModal(false)} />
 
       {/* Confirm Logout Modal */}
       <ConfirmLogoutModal

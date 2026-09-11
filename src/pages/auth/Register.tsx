@@ -13,14 +13,29 @@ export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrors({});
+    
+    // Client-side validation
+    if (password !== confirmPassword) {
+      setErrors((prev) => ({ ...prev, confirmPassword: "Mật khẩu xác nhận không khớp" }));
+      toast.error("Mật khẩu xác nhận không khớp");
+      return;
+    }
+    
+    if (password.length < 8) {
+      setErrors((prev) => ({ ...prev, password: "Mật khẩu phải có ít nhất 8 ký tự" }));
+      toast.error("Mật khẩu phải có ít nhất 8 ký tự");
+      return;
+    }
+
+    setLoading(true);
     try {
       const response = await registerApi({ name, email, password });
       if (response.data.success) {
@@ -98,6 +113,24 @@ export default function Register() {
           error={errors.password}
           required
         />
+
+        <PasswordField
+          id="register-confirm-password"
+          label="Confirm Password"
+          value={confirmPassword}
+          onChange={(value) => {
+            setConfirmPassword(value);
+            if (errors.confirmPassword) {
+              setErrors((prev) => ({ ...prev, confirmPassword: "" }));
+            }
+          }}
+          placeholder="••••••••"
+          leftIcon={<Lock className="w-5 h-5" />}
+          error={errors.confirmPassword}
+          required
+        />
+
+        <p className="text-xs text-slate-500">Min 8 characters</p>
 
         <SubmitButton
           label={loading ? "Registering" : "Register"}

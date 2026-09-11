@@ -4,7 +4,9 @@ export interface DictionaryResult {
     meaning: string;
     pronunciation?: string;
     partOfSpeech?: string;
-    example: string[];
+    example?: string[];
+    examples?: string[];
+    descriptionEN?: string;
     audioUrl?: string;
     found: boolean;
     provider: string;

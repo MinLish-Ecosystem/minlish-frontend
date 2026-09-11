@@ -430,6 +430,40 @@ export default function AdminSettings() {
             />
           </div>
         </div>
+
+        {/* Voice AI Conversation Prompt Card (UC-13 BR-02) */}
+        <div className="bg-white rounded-2xl border border-[#c7c4d7]/40 shadow-sm overflow-hidden relative">
+          <div className="h-[3px] w-full bg-[#8127cf] absolute top-0 left-0"></div>
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <h3 className="font-bold text-[#0b1c30] flex items-center gap-2 text-base">
+              <Brain className="w-5 h-5 text-[#8127cf]" />
+              Voice AI Conversation Prompt
+            </h3>
+          </div>
+          <div className="p-6 space-y-4">
+            <p className="text-slate-500 text-xs leading-relaxed">
+              Vai trò + chủ đề của gấu luyện nói (LLM on-device mồi bằng prompt này). Viết tiếng Anh,
+              câu ngắn, cấm mở đầu lặp lại kiểu &quot;How are you&quot; nếu muốn đa dạng.
+              Hỗ trợ biến mẫu theo từng người: <code className="font-bold text-[#8127cf]">{'{{focus_words}}'}</code> từ
+              mồi hôm nay · <code className="font-bold text-[#8127cf]">{'{{level}}'}</code> trình độ ·{' '}
+              <code className="font-bold text-[#8127cf]">{'{{name}}'}</code> tên user.
+              Lưu xong áp dụng ngay lần mở voice-chat tiếp theo — không cần restart server.
+            </p>
+            <textarea
+              value={formData?.voiceAiSystemPrompt ?? ""}
+              onChange={(e) => handleChange("voiceAiSystemPrompt", e.target.value)}
+              rows={14}
+              maxLength={4000}
+              placeholder="You are a friendly English conversation partner..."
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-sans font-semibold text-slate-600 leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#8127cf] focus:border-transparent transition-all"
+            />
+            <div className="flex justify-end">
+              <span className="text-[11px] font-semibold text-slate-400">
+                {(formData?.voiceAiSystemPrompt ?? "").length}/4000
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
