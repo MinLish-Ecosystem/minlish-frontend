@@ -90,7 +90,7 @@ export function useReadingSession(initialLevel: CefrLevel | null): UseReadingSes
   // Per-question timer — reset khi chuyển câu (BR-07); câu đã submit xem lại không tích lũy
   const questionStartRef = useRef<number>(Date.now());
   const [currentTimerRunning, setCurrentTimerRunning] = useState(true);
-  const lastSubmittedRef = useRef<Set<string>>(new Set();
+  const lastSubmittedRef = useRef<Set<string>>(new Set());
   lastSubmittedRef.current = new Set();
 
   // Latest submit payload — retry giữ nguyên groupId + NGUYÊN TRẠNG body (D-6)

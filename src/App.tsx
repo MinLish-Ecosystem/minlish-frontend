@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { Provider } from "react-redux";
 import { store } from "./store";
@@ -56,6 +56,8 @@ const FlashcardSession = lazy(() => import("./pages/learn/FlashcardSession"));
 // Practice
 const Practice = lazy(() => import("./pages/practice/Practice"));
 const PracticeSession = lazy(() => import("./pages/practice/PracticeSession"));
+// UC-15 Listening Practice — trang phiên theo docs/frontend/uc-15-listening/component-design.md
+const ListeningSession = lazy(() => import("./pages/practice/ListeningSession"));
 
 // Voice AI (UC-13) — page duy nhất theo spec; route cũ /voice-ai redirect về /voice-chat
 const VoiceChatPage = lazy(() => import("./pages/voiceai/VoiceChatPage"));
@@ -92,6 +94,12 @@ const RootRedirect = () => {
   if (!user) return <Navigate to="/login" />;
   if (user.role === 'admin') return <Navigate to="/admin/dashboard" />;
   return <Navigate to="/dashboard" />;
+};
+
+// UC-15 Listening — điểm vào /practice/listening tự chuyển vào phiên, giữ nguyên query ?level= (ui-flow.md)
+const ListeningEntryRedirect = () => {
+  const { search } = useLocation();
+  return <Navigate to={`/practice/listening/session${search}`} replace />;
 };
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -281,6 +289,16 @@ export default function App() {
                           element={
                             <Suspense fallback={<PageLoader />}>
                               <PracticeSession />
+                            </Suspense>
+                          }
+                        />
+                        {/* UC-15 Listening — /practice/listening là điểm vào, tự chuyển vào phiên (ui-flow.md Route Map) */}
+                        <Route path="/practice/listening" element={<ListeningEntryRedirect />} />
+                        <Route
+                          path="/practice/listening/session"
+                          element={
+                            <Suspense fallback={<PageLoader />}>
+                              <ListeningSession />
                             </Suspense>
                           }
                         />

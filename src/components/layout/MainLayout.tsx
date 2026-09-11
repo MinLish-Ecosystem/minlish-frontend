@@ -13,7 +13,8 @@ import {
   HelpCircle,
   Zap,
   FolderHeart,
-  Mic
+  Mic,
+  Headphones
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { cn } from "../../lib/utils";
@@ -88,6 +89,20 @@ export default function MainLayout() {
           <SidebarItem to="/community" icon={Users} label="Community" />
           <SidebarItem to="/my-content" icon={FolderHeart} label="My Content" />
           <SidebarItem to="/practice" icon={BrainCircuit} label="Practice" />
+          {/* UC-15 Listening — mục con của Practice theo ui-flow.md Route Map */}
+          <NavLink
+            to="/practice/listening"
+            className={({ isActive }) => cn(
+              "ml-12 flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200",
+              isActive
+                ? "bg-[#9c48ea] text-white shadow-md shadow-purple-200"
+                : "text-slate-400 hover:bg-slate-100 hover:scale-[1.02]",
+              "motion-reduce:transition-none",
+            )}
+          >
+            <Headphones className="w-4 h-4" />
+            <span>Listening</span>
+          </NavLink>
           <SidebarItem to="/voice-chat" icon={Mic} label="Voice AI" />
           <SidebarItem to="/statistics" icon={BarChart3} label="Statistics" />
         </nav>
