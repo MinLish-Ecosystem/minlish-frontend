@@ -21,6 +21,8 @@ export interface VoiceAITierDto {
   requirements: { minRamGB: number; minCpuCores: number; gpuRequired: boolean };
   components: { stt: ComponentDto; llm: ComponentDto; tts: ComponentDto };
   totalSizeMB: number;
+  /** Fingerprint weights (BE hash 1 chiều megaFileId+sizeMB) — lệch meta cache → purge + tải lại. */
+  weightsVersion: string;
   status: ModelStatus;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +51,7 @@ export interface ComponentDownload {
 export interface DownloadResponse {
   downloads: { stt: ComponentDownload; llm: ComponentDownload; tts: ComponentDownload };
   totalSizeMB: number;
+  weightsVersion?: string;
 }
 
 // ── Device & eligibility ────────────────────────────────────

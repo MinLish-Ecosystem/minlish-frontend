@@ -9,9 +9,12 @@ import type { ComponentDownload, DownloadProgress, VoiceAITierDto } from '../typ
 const ACTIVE_TIER_KEY = 'minlish_voice_active_tier';
 const CACHE_PREFIX = 'voice-ai-weights';
 const META_KEY = 'minlish_voice_cached_meta';
+const PENDING_SWITCH_KEY = 'minlish_voice_pending_switch';
 
 interface CachedMeta {
   tierId: string;
+  /** Fingerprint weights lúc tải (hash BE trả) — lệch version catalog → purge + tải lại. */
+  weightsVersion: string | null;
   components: { stt: string; llm: string; tts: string };
 }
 
@@ -43,6 +46,38 @@ export const isTierCached = (tierId: string): boolean => {
 };
 
 export const getCachedTierId = (): string | null => readMeta()?.tierId ?? null;
+
+/** Version weights đã tải (từ meta) — null nếu meta cũ chưa có field này (cache trước khi có versioning). */
+export const getCachedWeightsVersion = (): string | null => readMeta()?.weightsVersion ?? null;
+
+/**
+ * Cache weights có stale không: tierId khớp nhưng version lệch (admin đã up
+ * weights mới — megaFileId/sizeMB đổi). Cả hai phía đều có version mới so;
+ * meta cũ thiếu version hoặc BE cũ thiếu version → coi như không stale để
+ * không ép tải lại vô ích.
+ */
+export const isTierCacheStale = (tier: Pick<VoiceAITierDto, '_id' | 'weightsVersion'>): boolean => {
+  const meta = readMeta();
+  if (meta?.tierId !== tier._id) return false;
+  if (!meta.weightsVersion || !tier.weightsVersion) return false;
+  return meta.weightsVersion !== tier.weightsVersion;
+};
+
+// ── Pending switch (AF-01 flow reload) ──────────────────────
+// Confirm đổi tier → ghi flag tier đích → reload nguyên trang. Sau reload,
+// page đọc flag để purge weights cũ + tự tải weights mới.
+
+/** Đánh dấu "sau reload cần purge + tải tier này" — gọi ngay trước window.location.reload(). */
+export const setPendingSwitchReload = (tierId: string): void => {
+  localStorage.setItem(PENDING_SWITCH_KEY, tierId);
+};
+
+/** Đọc + xóa flag pending switch (consume một lần duy nhất). */
+export const consumePendingSwitchReload = (): string | null => {
+  const pending = localStorage.getItem(PENDING_SWITCH_KEY);
+  if (pending) localStorage.removeItem(PENDING_SWITCH_KEY);
+  return pending;
+};
 
 /**
  * Kiểm tra blob LLM thật sự còn trong Cache Storage.
@@ -198,6 +233,10 @@ export const downloadTierWeights = async (
       };
     }
   }
-  writeMeta({ tierId: tier._id, components: { stt: 'ok', llm: 'ok', tts: 'ok' } });
+  writeMeta({
+    tierId: tier._id,
+    weightsVersion: tier.weightsVersion ?? null,
+    components: { stt: 'ok', llm: 'ok', tts: 'ok' },
+  });
   return { progress, error: null };
 };

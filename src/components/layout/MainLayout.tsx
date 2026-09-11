@@ -43,8 +43,8 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   // Trang voice-chat đã có gấu bự giữa màn hình — ẩn widget Aura góc phải cho khỏi trùng
-  const hideAuraWidget =
-    location.pathname.startsWith('/voice-chat') || location.pathname.startsWith('/voice-ai');
+  // (/voice-ai giờ chỉ redirect về /voice-chat nên không cần check riêng)
+  const hideAuraWidget = location.pathname.startsWith('/voice-chat');
   const { sets } = useSelector((state: RootState) => state.vocab);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
